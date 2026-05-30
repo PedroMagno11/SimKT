@@ -13,8 +13,8 @@ class Environment {
     private var nextEventId: Long = 0L
 
     private val eventQueue = PriorityQueue<SimEvent>(
-        compareBy <SimEvent> {it.time}
-            .thenBy { it.priority }
+        compareBy <SimEvent> {it.priority}
+//            .thenBy { it.priority }
             .thenBy { it.id }
     )
 
@@ -30,17 +30,17 @@ class Environment {
      * - action (a ação propriamente dita).
      */
     fun schedule(
-        delay: Double,
+//        delay: Double,
         priority: Int = eventQueue.size,
         action: Environment.() -> Unit
     ){
-        require(delay >= 0.0){
-            "O delay não pode ser negativo."
-        }
+//        require(delay >= 0.0){
+//            "O delay não pode ser negativo."
+//        }
 
         eventQueue.add(SimEvent(
             id = nextEventId++,
-            time = now + delay,
+//            time = now + delay,
             priority = priority,
             action = action
         ))
@@ -54,12 +54,12 @@ class Environment {
         while(eventQueue.isNotEmpty()){
             val event: SimEvent = eventQueue.poll()
 
-            if(event.time > until){
-                now = until
-                break
-            }
+//            if(event.time > until){
+//                now = until
+//                break
+//            }
 
-            now = event.time
+//            now = event.time
             event.action(this)
         }
     }
