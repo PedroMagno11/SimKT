@@ -1,30 +1,32 @@
 package br.com.pedromagno.core
 
-class Simulation {
-    private val env: Environment = Environment()
-    private val bus: EventBus = EventBus()
-    private val entities: MutableList<SimEntity> = mutableListOf<SimEntity>()
+import br.com.pedromagno.process.ISimProcess
 
-    private var started: Boolean = false
+class Simulation(
+    val name: String,
+    val env: Environment = Environment()
+) {
+    private val entities = mutableListOf<SimEntity>()
 
-    fun add(entityFactory: (Environment, EventBus) -> SimEntity): Simulation {
-        val entity = entityFactory(env, bus)
+    fun addEntity(entity: SimEntity): Simulation {
         entities.add(entity)
+        entity.onCreate(env)
         return this
     }
 
-    fun start(){
-        if (started) return
-
-        entities.forEach {
-            entity -> entity.start()
-        }
-
-        started = true
+    fun addProcess(process: ISimProcess): Simulation {
+        env.process(process)
+        return this
     }
 
-    fun run(until: Double = Double.POSITIVE_INFINITY) {
-        start()
-        env.run(until)
+    fun run(until: Double) {
+        env.run(until = SimTime(until))
+    }
+
+    fun printReport() {
+        println("Simulation: $name")
+        println("Time: ${env.now}")
+        println("Entities: ${entities.size}")
+        env.monitor.printAll()
     }
 }
