@@ -2,7 +2,6 @@ package br.com.pedromagno.resource
 
 import br.com.pedromagno.core.Environment
 import br.com.pedromagno.event.SimEvent
-import kotlin.concurrent.timer
 
 class SimResource(
     private val env: Environment,

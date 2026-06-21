@@ -1,6 +1,6 @@
 package br.com.pedromagno.core
 
-import br.com.pedromagno.process.ISimProcess
+import br.com.pedromagno.process.SimProcess
 
 class Simulation(
     val name: String,
@@ -14,7 +14,7 @@ class Simulation(
         return this
     }
 
-    fun addProcess(process: ISimProcess): Simulation {
+    fun addProcess(process: SimProcess): Simulation {
         env.process(process)
         return this
     }

@@ -7,7 +7,7 @@ import br.com.pedromagno.core.SimTime
 import br.com.pedromagno.event.SimEvent
 import br.com.pedromagno.resource.SimResource
 import br.com.pedromagno.resource.SimResourceRequest
-import br.com.pedromagno.store.SimQueue
+import br.com.pedromagno.communication.queue.SimQueue
 import kotlin.coroutines.suspendCoroutine
 
 class SimProcessContext (

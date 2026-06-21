@@ -4,7 +4,7 @@ import br.com.pedromagno.continuous.SimContinuousModel
 import br.com.pedromagno.core.Environment
 import br.com.pedromagno.core.SimTime
 
-fun main(){
+fun main() {
     val env = Environment()
     var position = 0.0
     val speed = 2.0

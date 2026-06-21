@@ -76,7 +76,7 @@ class SimContainer(
                 changed = true
             }
 
-            while (waitingPuts.isNotEmpty() && available() >= waitingGets.first().amount){
+            while (waitingPuts.isNotEmpty() && available() >= waitingPuts.first().amount){
                 val pending = waitingPuts.removeFirst()
                 level += pending.amount
                 pending.event.trigger()
