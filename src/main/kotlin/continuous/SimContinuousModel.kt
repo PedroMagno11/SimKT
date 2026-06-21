@@ -2,6 +2,7 @@ package br.com.pedromagno.continuous
 
 import br.com.pedromagno.process.SimProcessContext
 
+
 /**
  * Modelo contínuo executado em passos fixos dentro do motor de eventos
  * discretos.

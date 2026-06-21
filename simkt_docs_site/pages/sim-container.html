@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimContainer no SimKT: recipiente numérico para modelar combustível, bateria, água. level, put, get, available.">
+  <title>SimContainer | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimContainer</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimContainer(env, name: String, capacity: Double, initialLevel: Double = 0.0)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimContainer</code> modela um recipiente de quantidade contínua com capacidade finita.
+        Processos adicionam (<code>ctx.put()</code>) e retiram (<code>ctx.get()</code>) quantidades,
+        suspendendo automaticamente quando não há espaço ou quantidade suficiente.
+        Use para modelar tanques de combustível, baterias, reservatórios de água, estoques numéricos.
+      </p>
+
+      <h2>Criação</h2>
+<pre><code class="language-kotlin">// Tanque de combustível começando vazio
+val tanque = env.container("tanque", capacity = 500.0)
+
+// Bateria começando cheia
+val bateria = env.container("bateria", capacity = 100.0, initialLevel = 100.0)</code></pre>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>name</td><td>String</td><td>Identificador do recipiente.</td></tr>
+          <tr><td>capacity</td><td>Double</td><td>Capacidade máxima.</td></tr>
+          <tr><td>level</td><td>Double</td><td>Nível atual. Leitura direta — não suspende.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>put(amount: Double): SimEvent&lt;Unit&gt;</td><td>SimEvent</td><td>Adiciona <code>amount</code> ao nível. Suspende se não houver espaço suficiente.</td></tr>
+          <tr><td>get(amount: Double): SimEvent&lt;Unit&gt;</td><td>SimEvent</td><td>Remove <code>amount</code> do nível. Suspende se o nível atual for insuficiente.</td></tr>
+          <tr><td>available()</td><td>Double</td><td>Espaço livre: <code>capacity - level</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplo: posto de combustível simplificado</h2>
+<pre><code class="language-kotlin">val env = Environment()
+val tanque = env.container("underground-tank", capacity = 500.0, initialLevel = 300.0)
+
+// Carro chega e abastece
+env.process(SimProcess { ctx ->
+    val necessidade = 80.0
+    ctx.env.monitor.record(ctx.now,
+        "Carro chegou (tanque: ${tanque.level}L)")
+
+    ctx.get(tanque, necessidade)  // suspende se não tiver combustível
+    ctx.env.monitor.record(ctx.now,
+        "Carro abasteceu ${necessidade}L (restam: ${tanque.level}L)")
+    ctx.hold(4.0)  // tempo de abastecimento
+})
+
+// Caminhão de reabastecimento
+env.process(SimProcess { ctx ->
+    ctx.hold(2.0)
+    ctx.env.monitor.record(ctx.now, "Caminhão chegou")
+    ctx.put(tanque, 150.0)
+    ctx.env.monitor.record(ctx.now,
+        "Reabastecimento concluído (tanque: ${tanque.level}L)")
+})
+
+env.run(until = SimTime(10.0))
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">[SimTime(value=0.0)]: Carro chegou (tanque: 300.0L)
+[SimTime(value=0.0)]: Carro abasteceu 80.0L (restam: 220.0L)
+[SimTime(value=2.0)]: Caminhão chegou
+[SimTime(value=2.0)]: Reabastecimento concluído (tanque: 370.0L)</div>
+
+      <h2>Combinando com SimContinuousModel</h2>
+      <p>
+        Use <code>SimContinuousModel</code> para drenar o container em taxa constante e
+        <code>SimProcess</code> para eventos discretos (como ligar o modo econômico).
+        Veja o exemplo completo em <a href="example-battery.html">Bateria e Sensores</a>.
+      </p>
+<pre><code class="language-kotlin">val bateria = env.container("bateria", capacity = 100.0, initialLevel = 100.0)
+
+// Drena 2% por unidade de tempo
+val drainModel = SimContinuousModel { ctx, dt ->
+    val drain = 2.0 * dt
+    val atual = minOf(drain, bateria.level)
+    if (atual > 0.0) bateria.get(atual)
+}
+
+env.continuous(stepSize = 1.0, models = arrayOf(drainModel))
+env.run(until = SimTime(60.0))
+
+println("Bateria restante: ${bateria.level}%")</code></pre>
+
+      <div class="callout warning">
+        <code>amount</code> deve ser > 0. A chamada lança <code>IllegalArgumentException</code>
+        se zero ou negativo for passado.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-container.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

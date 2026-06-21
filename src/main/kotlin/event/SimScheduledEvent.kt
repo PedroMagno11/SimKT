@@ -1,6 +1,6 @@
 package br.com.pedromagno.event
 
-data class SimScheduledEvent(
+internal data class SimScheduledEvent(
     val event: SimEvent<*>,
     val sequence: Long,
 ): Comparable<SimScheduledEvent> {

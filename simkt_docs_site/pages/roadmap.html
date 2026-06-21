@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Roadmap do SimKT: o que foi implementado em v0.1.0 e o que está planejado para versões futuras.">
+  <title>Roadmap | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Roadmap</h1>
+      <p class="page-intro">
+        O que está disponível hoje, o que está planejado, e as ideias de longo prazo
+        para o SimKT.
+      </p>
+
+      <div class="callout info">
+        O SimKT é experimental e em desenvolvimento ativo. A API pode mudar entre versões.
+        Veja o <a href="https://github.com/PedroMagno11/SimKT" target="_blank">repositório no GitHub</a>
+        para o estado atual do código.
+      </div>
+
+      <h2>v0.1.0 — atual</h2>
+      <p>Arquitetura central redesenhada com suporte a processos, primitivos de simulação e utilitários.</p>
+
+      <table class="api-table">
+        <thead>
+          <tr><th>Componente</th><th>Status</th><th>Descrição</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Environment</code></td><td><span class="tag tag-class">disponível</span></td><td>Fachada principal — cria primitivos, agenda eventos, executa a simulação</td></tr>
+          <tr><td><code>Simulation</code></td><td><span class="tag tag-class">disponível</span></td><td>Contêiner nomeado de entidades e processos com relatório integrado</td></tr>
+          <tr><td><code>SimProcess</code></td><td><span class="tag tag-fun">disponível</span></td><td>fun interface com suporte a suspend — coroutines de baixo nível (stdlib)</td></tr>
+          <tr><td><code>SimProcessContext</code></td><td><span class="tag tag-class">disponível</span></td><td>Fornece hold, await, request/release, send/receive, put/get</td></tr>
+          <tr><td><code>SimEvent&lt;T&gt;</code></td><td><span class="tag tag-class">disponível</span></td><td>Evento tipado com ciclo de vida PENDING → TRIGGERED / CANCELLED</td></tr>
+          <tr><td><code>SimTime</code></td><td><span class="tag tag-val">disponível</span></td><td>Valor inline adimensional para tempo virtual</td></tr>
+          <tr><td><code>SimConfig</code></td><td><span class="tag tag-data">disponível</span></td><td>Parâmetros de execução: until, maxEvents, randomSeed</td></tr>
+          <tr><td><code>SimEntity</code></td><td><span class="tag tag-abstract">disponível</span></td><td>Classe base para entidades com ciclo de vida onCreate / onDestroy</td></tr>
+          <tr><td><code>SimResource</code></td><td><span class="tag tag-class">disponível</span></td><td>Recurso compartilhado com capacidade e fila FIFO de espera</td></tr>
+          <tr><td><code>SimChannel&lt;T&gt;</code></td><td><span class="tag tag-class">disponível</span></td><td>Canal FIFO tipado com backpressure integrado ao scheduler</td></tr>
+          <tr><td><code>SimQueue&lt;T&gt;</code></td><td><span class="tag tag-class">disponível</span></td><td>Store FIFO tipado (criado via env.store())</td></tr>
+          <tr><td><code>SimContainer</code></td><td><span class="tag tag-class">disponível</span></td><td>Container numérico para combustível, bateria, fluidos</td></tr>
+          <tr><td><code>SimContinuousModel</code></td><td><span class="tag tag-fun">disponível</span></td><td>Modelo contínuo de passo fixo integrado ao scheduler discreto</td></tr>
+          <tr><td><code>SimTopic&lt;T&gt;</code></td><td><span class="tag tag-class">disponível</span></td><td>Pub/sub síncrono com on() / emit() (substitui EventBus)</td></tr>
+          <tr><td><code>SimMonitor</code></td><td><span class="tag tag-class">disponível</span></td><td>Log de eventos com timestamp — record(), all(), printAll(), clear()</td></tr>
+          <tr><td><code>SimRandomProvider</code></td><td><span class="tag tag-class">disponível</span></td><td>RNG com seed — nextInt, nextLong, nextDouble, nextBoolean</td></tr>
+          <tr><td>Coordenadas</td><td><span class="tag tag-interface">disponível</span></td><td>CoordXY, CoordXYZ, CoordGeo (Haversine), CoordPolar</td></tr>
+        </tbody>
+      </table>
+
+      <h2>v0.2 — planejado</h2>
+      <p>Foco em ergonomia, testabilidade e integração com o ecossistema Kotlin.</p>
+      <ul>
+        <li><strong>DSL de processos</strong> — bloco <code>simulation { }</code> com sintaxe mais concisa para cenários simples</li>
+        <li><strong>Coleta de estatísticas</strong> — utilitários para calcular média, variância, throughput e utilização de recursos ao longo do tempo</li>
+        <li><strong>SimMonitor estruturado</strong> — suporte a campos tipados em vez de strings, facilitando análise programática</li>
+        <li><strong>Eventos recorrentes</strong> — <code>env.every(interval) { }</code> como atalho para processos periódicos</li>
+        <li><strong>Timeout em await()</strong> — <code>ctx.await(event, timeout = SimTime(10.0))</code></li>
+        <li><strong>Testes</strong> — suite de testes automatizados cobrindo todos os primitivos</li>
+      </ul>
+
+      <h2>v0.3 — exploratório</h2>
+      <p>Funcionalidades avançadas que dependem da maturação da API base.</p>
+      <ul>
+        <li><strong>Visualização</strong> — exportação de log para formatos padrão (CSV, JSON) para análise externa</li>
+        <li><strong>Múltiplos schedulers</strong> — execução de sub-simulações isoladas com barrier sync</li>
+        <li><strong>Sensores com ruído</strong> — <code>SimRandomProvider</code> integrado a modelos de sensor paramétricos</li>
+        <li><strong>Modelos de chegada</strong> — Poisson, exponencial e uniforme como helpers em <code>env.random</code></li>
+        <li><strong>Prioridade em recursos</strong> — filas de espera com prioridade em vez de FIFO puro</li>
+      </ul>
+
+      <h2>v1.0 — longo prazo</h2>
+      <ul>
+        <li>API estável com garantias de compatibilidade retroativa</li>
+        <li>Publicação no Maven Central</li>
+        <li>Documentação completa com tutoriais por domínio (IoT, logística, redes)</li>
+        <li>Remoção da anotação experimental</li>
+      </ul>
+
+      <h2>Sem plano de implementação</h2>
+      <p>As seguintes funcionalidades foram consideradas mas <strong>não estão no roadmap</strong> por enquanto:</p>
+      <ul>
+        <li>Execução paralela / multi-thread (o SimKT é deliberadamente single-thread para determinismo)</li>
+        <li>Integração com <code>kotlinx.coroutines</code> (conflita com a independência de runtime)</li>
+        <li>GUI integrada</li>
+      </ul>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('roadmap.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

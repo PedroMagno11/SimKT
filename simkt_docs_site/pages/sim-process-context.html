@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimProcessContext no SimKT: hold, await, request, release, send, receive, put, get — todos os métodos disponíveis dentro de um SimProcess.">
+  <title>SimProcessContext | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimProcessContext</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimProcessContext(env: Environment)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimProcessContext</code> é o objeto <code>ctx</code> recebido dentro de um
+        <code>SimProcess</code>. Ele expõe todos os métodos suspensos disponíveis — avançar
+        tempo, aguardar eventos e interagir com primitivos.
+        Todos os métodos são <code>suspend</code> e só podem ser chamados de dentro de um processo.
+      </p>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>env</td><td>Environment</td><td>Referência ao <code>Environment</code>. Use para acessar <code>ctx.env.monitor</code>, <code>ctx.env.random</code>, <code>ctx.env.stop()</code>, etc.</td></tr>
+          <tr><td>now</td><td>SimTime</td><td>Atalho para <code>env.now</code>. Tempo virtual atual.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Controle de tempo</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>suspend fun hold(delay: Double)</td><td>Suspende o processo por <code>delay</code> unidades de tempo virtuais. Retoma quando o evento interno é acionado pelo scheduler.</td></tr>
+          <tr><td>suspend fun hold(delay: Long)</td><td>Variante com <code>Long</code>.</td></tr>
+        </tbody>
+      </table>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    println("t=${ctx.now.value}")  // t=0.0
+    ctx.hold(5.0)
+    println("t=${ctx.now.value}")  // t=5.0
+    ctx.hold(3.0)
+    println("t=${ctx.now.value}")  // t=8.0
+})</code></pre>
+
+      <h2>Aguardar eventos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>suspend fun &lt;T&gt; await(event: SimEvent&lt;T&gt;): T?</td><td>T?</td><td>Suspende até o evento disparar. Retorna o valor do evento, ou <code>null</code> se cancelado.</td></tr>
+        </tbody>
+      </table>
+<pre><code class="language-kotlin">val sinal = env.eventAt(SimTime(10.0), value = "detecção")
+
+env.process(SimProcess { ctx ->
+    val resultado = ctx.await(sinal)
+    ctx.env.monitor.record(ctx.now, "sinal recebido: $resultado")
+})</code></pre>
+
+      <h2>Recursos (SimResource)</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>suspend fun request(resource: SimResource): SimResourceRequest</td><td>SimResourceRequest</td><td>Requisita o recurso. Suspende se a capacidade estiver esgotada. Retoma quando uma vaga é liberada.</td></tr>
+          <tr><td>fun release(resource: SimResource, request: SimResourceRequest)</td><td>Unit</td><td>Libera a vaga. Não é suspenso. Acorda o próximo processo em espera.</td></tr>
+        </tbody>
+      </table>
+<pre><code class="language-kotlin">val antena = env.resource("antena", capacity = 1)
+
+env.process(SimProcess { ctx ->
+    val token = ctx.request(antena)   // suspende se ocupada
+    ctx.hold(2.0)                      // usa o recurso
+    ctx.release(antena, token)         // libera
+})</code></pre>
+
+      <h2>Canal (SimChannel)</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>suspend fun &lt;T&gt; send(channel: SimChannel&lt;T&gt;, value: T)</td><td>Unit</td><td>Envia um valor. Suspende se o buffer estiver cheio e não houver receivers esperando.</td></tr>
+          <tr><td>suspend fun &lt;T&gt; receive(channel: SimChannel&lt;T&gt;): T</td><td>T</td><td>Recebe um valor. Suspende se o buffer estiver vazio. Lança erro se o evento retornar <code>null</code>.</td></tr>
+        </tbody>
+      </table>
+<pre><code class="language-kotlin">val canal = env.channel&lt;String&gt;("radio", capacity = 5)
+
+// Produtor
+env.process(SimProcess { ctx ->
+    ctx.hold(1.0)
+    ctx.send(canal, "mensagem-01")
+})
+
+// Consumidor
+env.process(SimProcess { ctx ->
+    val msg = ctx.receive(canal)   // suspende até ter mensagem
+    ctx.env.monitor.record(ctx.now, "recebido: $msg")
+})</code></pre>
+
+      <h2>Fila (SimQueue / store)</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>suspend fun &lt;T&gt; put(store: SimQueue&lt;T&gt;, value: T)</td><td>Unit</td><td>Insere item. Suspende se a fila estiver cheia.</td></tr>
+          <tr><td>suspend fun &lt;T&gt; get(store: SimQueue&lt;T&gt;): T</td><td>T</td><td>Retira item. Suspende se a fila estiver vazia.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Recipiente (SimContainer)</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>suspend fun put(container: SimContainer, amount: Double)</td><td>Unit</td><td>Adiciona quantidade ao recipiente. Suspende se não houver espaço suficiente.</td></tr>
+          <tr><td>suspend fun get(container: SimContainer, amount: Double)</td><td>Unit</td><td>Remove quantidade do recipiente. Suspende se o nível for insuficiente.</td></tr>
+        </tbody>
+      </table>
+<pre><code class="language-kotlin">val tanque = env.container("tanque", capacity = 500.0, initialLevel = 300.0)
+
+env.process(SimProcess { ctx ->
+    ctx.get(tanque, 50.0)   // retira 50 — suspende se não tiver
+    ctx.hold(5.0)
+    ctx.put(tanque, 100.0)  // reabastece 100
+})</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-process-context.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

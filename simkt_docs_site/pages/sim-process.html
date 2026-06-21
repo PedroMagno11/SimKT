@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimProcess no SimKT: fun interface com suspend fun run, como coroutines de baixo nível substituem kotlinx.coroutines.">
+  <title>SimProcess | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimProcess</h1>
+      <div class="sig-block">
+        <span class="tag tag-fun">fun interface</span>
+        <code>SimProcess { suspend fun run(context: SimProcessContext) }</code>
+      </div>
+      <p class="page-intro">
+        <code>SimProcess</code> é a abstração central do SimKT. Representa um comportamento
+        sequencial que avança no tempo virtual chamando <code>ctx.hold()</code>, espera
+        por eventos com <code>ctx.await()</code>, e interage com primitivos via
+        <code>ctx.request()</code>, <code>ctx.send()</code>, etc.
+      </p>
+
+      <div class="callout info">
+        <strong>Sem <code>kotlinx.coroutines</code>.</strong> O SimKT usa a API de coroutines
+        de baixo nível do Kotlin (<code>startCoroutine</code> + <code>suspendCoroutine</code>),
+        drivenada pelo próprio scheduler. Você não precisa de nenhuma dependência extra.
+      </div>
+
+      <h2>Como usar</h2>
+      <p>
+        Como é uma <em>fun interface</em>, você pode usar uma lambda. O parâmetro <code>ctx</code>
+        é um <a href="sim-process-context.html">SimProcessContext</a> — o único ponto de
+        entrada para interagir com a simulação de dentro de um processo.
+      </p>
+<pre><code class="language-kotlin">// Forma lambda (mais comum)
+val processo = SimProcess { ctx ->
+    ctx.hold(5.0)
+    ctx.env.monitor.record(ctx.now, "acordou")
+}
+
+// Classe explícita (quando precisar de estado interno)
+class SensorPeriodico(val intervalo: Double) : SimProcess {
+    override suspend fun run(context: SimProcessContext) {
+        while (true) {
+            context.hold(intervalo)
+            context.env.monitor.record(context.now, "leitura")
+        }
+    }
+}
+
+// Registro no Environment
+env.process(processo)
+env.process(SensorPeriodico(10.0))</code></pre>
+
+      <h2>Como processos são executados</h2>
+      <ol>
+        <li><code>env.process(p)</code> chama <code>p.run.startCoroutine(...)</code>.</li>
+        <li>A coroutine começa a executar <strong>imediatamente</strong> até o primeiro ponto de suspensão (<code>hold</code>, <code>await</code>, etc.).</li>
+        <li>No ponto de suspensão, um <code>Continuation</code> é criado e armazenado dentro do <code>SimEvent</code> correspondente.</li>
+        <li>O scheduler avança. Quando o evento é atingido, ele chama <code>event.trigger()</code>, que chama <code>continuation.resume()</code>.</li>
+        <li>A coroutine retoma exatamente de onde parou.</li>
+      </ol>
+
+      <div class="callout">
+        Nenhuma thread é bloqueada. O processo existe apenas como um objeto <code>Continuation</code>
+        na memória enquanto está suspenso.
+      </div>
+
+      <h2>Padrões comuns</h2>
+
+      <h3>Loop infinito (processo persistente)</h3>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    while (true) {
+        ctx.hold(10.0)
+        ctx.env.monitor.record(ctx.now, "evento periódico")
+    }
+})
+// O loop para quando env.run(until = ...) atingir o limite</code></pre>
+
+      <h3>Processo finito</h3>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    ctx.hold(5.0)
+    ctx.env.monitor.record(ctx.now, "passo 1")
+    ctx.hold(3.0)
+    ctx.env.monitor.record(ctx.now, "passo 2")
+    // termina — a coroutine encerra normalmente
+})</code></pre>
+
+      <h3>Processo com estado interno</h3>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    var bateria = 100.0
+    val drainRate = 5.0
+
+    while (bateria > 0) {
+        ctx.hold(1.0)
+        bateria -= drainRate
+        ctx.env.monitor.record(ctx.now, "bateria: $bateria%")
+
+        if (bateria <= 20.0) {
+            ctx.env.monitor.record(ctx.now, "alerta: bateria baixa")
+        }
+    }
+
+    ctx.env.stop()  // para a simulação quando a bateria zerar
+})</code></pre>
+
+      <h3>Iniciando processos de dentro de outro processo</h3>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    ctx.hold(5.0)
+    // Inicia um segundo processo em t=5
+    ctx.env.process(SimProcess { inner ->
+        inner.hold(3.0)
+        inner.env.monitor.record(inner.now, "processo filho concluído")
+    })
+    ctx.env.monitor.record(ctx.now, "processo pai continua")
+})</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-process.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

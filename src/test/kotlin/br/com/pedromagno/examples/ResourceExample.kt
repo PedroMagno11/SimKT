@@ -1,14 +1,14 @@
 package br.com.pedromagno.examples
 
 import br.com.pedromagno.core.Environment
-import br.com.pedromagno.process.ISimProcess
+import br.com.pedromagno.process.SimProcess
 
-fun main(){
+fun main() {
     val env = Environment()
     val antenna = env.resource(name = "antena", capacity = 1)
 
-    repeat(3){ index ->
-        env.process(ISimProcess {ctx ->
+    repeat(3) { index ->
+        env.process(SimProcess { ctx ->
             ctx.env.monitor.record(ctx.now, "Mensagem $index aguardando antena")
             val token = ctx.request(antenna)
             ctx.env.monitor.record(ctx.now, "Mensagem $index usando antena")

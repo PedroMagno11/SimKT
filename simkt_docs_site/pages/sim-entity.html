@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência da classe abstrata SimEntity do SimKT: ciclo de vida onCreate/onDestroy, id, name, createdAt, destroyedAt.">
+  <title>SimEntity | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimEntity</h1>
+      <div class="sig-block">
+        <span class="tag tag-abstract">abstract class</span>
+        <code>SimEntity(id: String = UUID.randomUUID().toString(), name: String)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimEntity</code> é a classe base para qualquer ator nomeado dentro de uma simulação.
+        Ela fornece um identificador único, um nome legível e hooks de ciclo de vida
+        (<code>onCreate</code> / <code>onDestroy</code>). Use-a quando quiser modelar drones,
+        radares, sensores, veículos ou qualquer componente que precise ser rastreado pela <code>Simulation</code>.
+      </p>
+
+      <div class="callout info">
+        <strong>SimEntity é opcional.</strong> Você pode usar <code>SimProcess</code> diretamente
+        sem estender <code>SimEntity</code>. A classe só é necessária quando você precisa de identidade
+        rastreável (id/nome) e callbacks de ciclo de vida.
+      </div>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>String</td><td>UUID gerado automaticamente. Pode ser sobrescrito no construtor para IDs legíveis.</td></tr>
+          <tr><td>name</td><td>String</td><td>Nome humano da entidade. Obrigatório.</td></tr>
+          <tr><td>createdAt</td><td>SimTime?</td><td>Tempo de criação. Preenchido por <code>onCreate()</code>. Null antes de ser adicionada à simulação.</td></tr>
+          <tr><td>destroyedAt</td><td>SimTime?</td><td>Tempo de destruição. Preenchido por <code>onDestroy()</code>. Null enquanto a entidade estiver ativa.</td></tr>
+          <tr><td>isDestroyed</td><td>Boolean</td><td>Verdadeiro se <code>onDestroy()</code> já foi chamado.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>open fun onCreate(env: Environment)</td><td>Chamado por <code>Simulation.addEntity()</code>. Registra <code>createdAt = env.now</code>. Sobrescreva para iniciar processos e configurar subscribers.</td></tr>
+          <tr><td>open fun onDestroy(env: Environment)</td><td>Registra <code>destroyedAt = env.now</code>. Não é chamado automaticamente — você decide quando chamar.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplo: entidade com processo interno</h2>
+      <p>
+        O padrão mais comum é sobrescrever <code>onCreate</code> para registrar o processo da entidade.
+        Isso mantém a lógica do ator encapsulada na própria classe.
+      </p>
+<pre><code class="language-kotlin">class Radar(
+    name: String,
+    private val detectionRange: Double
+) : SimEntity(name = name) {
+
+    override fun onCreate(env: Environment) {
+        super.onCreate(env)  // registra createdAt
+
+        env.process(SimProcess { ctx ->
+            while (true) {
+                ctx.hold(5.0)
+                ctx.env.monitor.record(ctx.now, "$name: varredura")
+            }
+        })
+    }
+}
+
+fun main() {
+    val sim = Simulation("Cenário de Detecção")
+    sim.addEntity(Radar("Radar-Alfa", detectionRange = 200.0))
+    sim.addEntity(Radar("Radar-Beta", detectionRange = 150.0))
+    sim.run(until = 20.0)
+    sim.printReport()
+}</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">Simulation: Cenário de Detecção
+Time: SimTime(value=20.0)
+Entities: 2
+[SimTime(value=5.0)]: Radar-Alfa: varredura
+[SimTime(value=5.0)]: Radar-Beta: varredura
+[SimTime(value=10.0)]: Radar-Alfa: varredura
+[SimTime(value=10.0)]: Radar-Beta: varredura
+[SimTime(value=15.0)]: Radar-Alfa: varredura
+[SimTime(value=15.0)]: Radar-Beta: varredura
+[SimTime(value=20.0)]: Radar-Alfa: varredura
+[SimTime(value=20.0)]: Radar-Beta: varredura</div>
+
+      <h2>Exemplo: ciclo de vida com destruição</h2>
+<pre><code class="language-kotlin">class MissaoLimitada(name: String, val duracao: Double) : SimEntity(name = name) {
+    override fun onCreate(env: Environment) {
+        super.onCreate(env)
+
+        env.process(SimProcess { ctx ->
+            ctx.env.monitor.record(ctx.now, "$name iniciada (t=${createdAt?.value})")
+            ctx.hold(duracao)
+            onDestroy(ctx.env)
+            ctx.env.monitor.record(ctx.now, "$name encerrada (t=${destroyedAt?.value})")
+        })
+    }
+}
+
+fun main() {
+    val sim = Simulation("Missão")
+    sim.addEntity(MissaoLimitada("Alpha", duracao = 15.0))
+    sim.run(until = 30.0)
+    sim.printReport()
+}</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-entity.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

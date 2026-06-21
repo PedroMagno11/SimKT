@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimQueue no SimKT: fila de objetos tipada com producers e consumers suspensos. put, get, size, waitingGets, waitingPuts.">
+  <title>SimQueue | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimQueue</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimQueue&lt;T&gt;(env, name: String, capacity: Int = Int.MAX_VALUE)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimQueue&lt;T&gt;</code> é uma fila de objetos FIFO para comunicação entre processos.
+        Producers inserem com <code>ctx.put()</code> e consumers retiram com <code>ctx.get()</code>,
+        com suspensão automática quando cheia ou vazia.
+        Criado via <code>env.store()</code>. Modela filas de tarefas, estoques, pipelines de processamento.
+      </p>
+
+      <div class="callout info">
+        <strong>SimQueue vs SimChannel:</strong> Ambos são FIFOs tipados. A distinção é semântica:
+        use <code>SimChannel</code> para troca de mensagens ponto-a-ponto e <code>SimQueue</code>
+        para modelar estoques ou buffers de produção.
+      </div>
+
+      <h2>Criação</h2>
+<pre><code class="language-kotlin">// Fila ilimitada
+val tarefas = env.store&lt;String&gt;("tarefas")
+
+// Fila limitada — producer suspende quando cheia
+val buffer = env.store&lt;DataPacket&gt;("buffer", capacity = 5)</code></pre>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>name</td><td>String</td><td>Identificador da fila.</td></tr>
+          <tr><td>capacity</td><td>Int</td><td>Capacidade máxima.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>put(item: T): SimEvent&lt;Unit&gt;</td><td>SimEvent</td><td>Insere item. Suspende o producer se a fila estiver cheia.</td></tr>
+          <tr><td>get(): SimEvent&lt;T&gt;</td><td>SimEvent&lt;T&gt;</td><td>Retira o item mais antigo. Suspende o consumer se a fila estiver vazia.</td></tr>
+          <tr><td>size()</td><td>Int</td><td>Itens atualmente na fila.</td></tr>
+          <tr><td>waitingGets()</td><td>Int</td><td>Consumers suspensos aguardando itens.</td></tr>
+          <tr><td>waitingPuts()</td><td>Int</td><td>Producers suspensos aguardando espaço.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplo: produtor-consumidor com fila limitada</h2>
+<pre><code class="language-kotlin">data class Pacote(val id: Int, val tamanho: Int)
+
+val env = Environment()
+val buffer = env.store&lt;Pacote&gt;("buffer", capacity = 3)
+
+// Produtor: gera pacotes a cada 2 unidades
+env.process(SimProcess { ctx ->
+    var id = 0
+    while (true) {
+        ctx.hold(2.0)
+        val p = Pacote(++id, 100)
+        ctx.env.monitor.record(ctx.now,
+            "Produtor: enfileirando $id (fila: ${buffer.size()}/${buffer.capacity})")
+        ctx.put(buffer, p)  // suspende se fila cheia
+    }
+})
+
+// Consumidor: processa cada pacote em 5 unidades
+env.process(SimProcess { ctx ->
+    while (true) {
+        val p = ctx.get(buffer)  // suspende se fila vazia
+        ctx.env.monitor.record(ctx.now, "Consumidor: processando ${p.id}")
+        ctx.hold(5.0)
+    }
+})
+
+env.run(until = SimTime(30.0))
+env.monitor.printAll()</code></pre>
+
+      <h2>Múltiplos consumers</h2>
+<pre><code class="language-kotlin">val env = Environment()
+val fila = env.store&lt;String&gt;("jobs", capacity = 10)
+
+// 1 produtor
+env.process(SimProcess { ctx ->
+    repeat(8) { i ->
+        ctx.hold(1.0)
+        ctx.put(fila, "job-$i")
+    }
+})
+
+// 3 workers
+repeat(3) { w ->
+    env.process(SimProcess { ctx ->
+        while (true) {
+            val job = ctx.get(fila)
+            ctx.env.monitor.record(ctx.now, "Worker $w: executando $job")
+            ctx.hold(ctx.env.random.nextDouble(2.0, 5.0))
+        }
+    })
+}
+
+env.run(SimConfig(until = SimTime(20.0), randomSeed = 42L))
+env.monitor.printAll()</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-queue.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

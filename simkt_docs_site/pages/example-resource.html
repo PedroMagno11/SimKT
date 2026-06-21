@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo SimKT: três processos disputam uma antena de capacidade 1 com SimResource. Mostra request, hold e release.">
+  <title>Recurso Compartilhado | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Recurso Compartilhado</h1>
+      <p class="page-intro">
+        Três processos concorrem por uma antena de capacidade 1.
+        Cada um espera na fila FIFO até a antena ficar livre, usa por 2 unidades de tempo e libera.
+      </p>
+
+      <p><strong>Demonstra:</strong> <code>SimResource</code>, <code>ctx.request()</code>, <code>ctx.release()</code>, fila de espera automática.</p>
+
+      <h2>Código</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Environment
+import br.com.pedromagno.process.SimProcess
+
+fun main() {
+    val env = Environment()
+    val antenna = env.resource(name = "antena", capacity = 1)
+
+    repeat(3) { index ->
+        env.process(SimProcess { ctx ->
+            ctx.env.monitor.record(ctx.now, "Mensagem $index aguardando antena")
+
+            val token = ctx.request(antenna)  // suspende se antena ocupada
+            ctx.env.monitor.record(ctx.now, "Mensagem $index usando antena")
+
+            ctx.hold(2.0)
+            ctx.release(antenna, token)
+
+            ctx.env.monitor.record(ctx.now, "Mensagem $index liberou antena")
+        })
+    }
+
+    env.run()
+    env.monitor.printAll()
+}</code></pre>
+
+      <p class="output-label">Saída</p>
+      <div class="output-block">[SimTime(value=0.0)]: Mensagem 0 aguardando antena
+[SimTime(value=0.0)]: Mensagem 1 aguardando antena
+[SimTime(value=0.0)]: Mensagem 2 aguardando antena
+[SimTime(value=0.0)]: Mensagem 0 usando antena
+[SimTime(value=2.0)]: Mensagem 1 usando antena
+[SimTime(value=2.0)]: Mensagem 0 liberou antena
+[SimTime(value=4.0)]: Mensagem 2 usando antena
+[SimTime(value=4.0)]: Mensagem 1 liberou antena
+[SimTime(value=6.0)]: Mensagem 2 liberou antena</div>
+
+      <h2>O que está acontecendo</h2>
+      <ul>
+        <li>Os três processos são iniciados imediatamente e todos registram "aguardando" em t=0.</li>
+        <li>Mensagem 0 adquire a antena (capacidade disponível) e começa a transmitir.</li>
+        <li>Mensagens 1 e 2 ficam suspensas na fila do <code>SimResource</code>.</li>
+        <li>Em t=2, Mensagem 0 libera. O <code>SimResource</code> acorda Mensagem 1 automaticamente.</li>
+        <li>Em t=4, Mensagem 1 libera, acordando Mensagem 2.</li>
+        <li>Em t=6, Mensagem 2 conclui. A fila está vazia — <code>env.run()</code> termina.</li>
+      </ul>
+
+      <div class="callout info">
+        <code>env.run()</code> sem argumento <code>until</code> roda até a fila de eventos se esgotar.
+        Ideal quando o tempo final depende da lógica da simulação.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('example-resource.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

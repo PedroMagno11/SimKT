@@ -1,0 +1,47 @@
+/* ── Plain code blocks (no Prism) ── */
+pre:not([class*="language-"]) {
+  background: var(--code);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+code:not([class*="language-"]) {
+  color: #ddd6fe;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: .91rem;
+}
+
+/* Inline code */
+p code, li code, td code {
+  background: rgba(255,255,255,.07);
+  color: #ddd6fe;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: .87rem;
+}
+
+/* ── Prism tomorrow theme overrides to match site palette ── */
+pre[class*="language-"] {
+  background: var(--code) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  padding: 20px !important;
+  margin: 16px 0 !important;
+  overflow-x: auto;
+  box-shadow: none !important;
+}
+code[class*="language-"] {
+  font-family: Consolas, Monaco, 'Courier New', monospace !important;
+  font-size: .91rem !important;
+  background: none !important;
+  text-shadow: none !important;
+}
+/* Keep Prism token colours but remove its default background on inline code */
+:not(pre) > code[class*="language-"] {
+  background: rgba(255,255,255,.07) !important;
+  padding: 2px 6px !important;
+  border-radius: 6px !important;
+}

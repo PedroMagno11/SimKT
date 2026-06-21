@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo avançado SimKT: posto de combustível com SimResource (bombas) e SimContainer (tanque). Carros chegam, abastecem e um caminhão reabastece o tanque.">
+  <title>Posto de Combustível | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Posto de Combustível</h1>
+      <p class="page-intro">
+        Carros chegam em horários predefinidos e disputam 2 bombas (<code>SimResource</code>).
+        Cada bomba consome do tanque subterrâneo (<code>SimContainer</code>).
+        Um caminhão-tanque reabastece em t=50. Um dos exemplos mais completos do SimKT.
+      </p>
+
+      <p><strong>Demonstra:</strong> <code>SimResource</code>, <code>SimContainer</code>, múltiplos processos com chegada determinística.</p>
+
+      <h2>Código completo</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.process.SimProcess
+
+const val TANK_CAPACITY = 500.0
+const val PUMP_COUNT    = 2
+const val REFILL_AMOUNT = 300.0
+const val REFILL_AT     = 50.0
+const val SIM_DURATION  = 100.0
+
+fun main() {
+    val env   = Environment()
+    val pumps = env.resource("pumps", capacity = PUMP_COUNT)
+    val fuelTank = env.container(
+        "underground-tank", capacity = TANK_CAPACITY, initialLevel = 300.0)
+
+    fun car(id: Int, arrivalTime: Double, fuelNeeded: Double) = SimProcess { ctx ->
+        ctx.hold(arrivalTime)
+        ctx.env.monitor.record(ctx.now, "Car $id chegou (precisa ${fuelNeeded}L)")
+
+        val pump = ctx.request(pumps)
+        ctx.env.monitor.record(ctx.now,
+            "Car $id na bomba (tanque: ${fuelTank.level}L)")
+
+        ctx.get(fuelTank, fuelNeeded)   // retira combustível do tanque
+        ctx.hold(fuelNeeded / 20.0)      // 20 L/min de taxa de abastecimento
+
+        ctx.release(pumps, pump)
+        ctx.env.monitor.record(ctx.now,
+            "Car $id concluiu (tanque: ${fuelTank.level}L)")
+    }
+
+    val tanker = SimProcess { ctx ->
+        ctx.hold(REFILL_AT)
+        ctx.env.monitor.record(ctx.now, "Caminhão chegou — abastecendo ${REFILL_AMOUNT}L")
+        ctx.put(fuelTank, REFILL_AMOUNT)
+        ctx.env.monitor.record(ctx.now,
+            "Caminhão concluiu (tanque: ${fuelTank.level}L)")
+    }
+
+    val arrivals = listOf(
+        Triple(1,  0.0, 40.0),
+        Triple(2,  2.0, 60.0),
+        Triple(3,  5.0, 30.0),
+        Triple(4,  8.0, 80.0),
+        Triple(5, 30.0, 50.0),
+        Triple(6, 55.0, 90.0),
+        Triple(7, 60.0, 45.0),
+    )
+
+    arrivals.forEach { (id, arrival, fuel) ->
+        env.process(car(id, arrival, fuel))
+    }
+    env.process(tanker)
+
+    env.run(until = SimTime(SIM_DURATION))
+
+    println("=== Posto de Combustível ===")
+    env.monitor.printAll()
+    println("Nível final do tanque: ${fuelTank.level}L / ${TANK_CAPACITY}L")
+    println("Bombas em uso ao final: ${pumps.used()}")
+}</code></pre>
+
+      <p class="output-label">Saída esperada (resumida)</p>
+      <div class="output-block">[SimTime(value=0.0)]: Car 1 chegou (precisa 40.0L)
+[SimTime(value=0.0)]: Car 1 na bomba (tanque: 300.0L)
+[SimTime(value=2.0)]: Car 2 chegou (precisa 60.0L)
+[SimTime(value=2.0)]: Car 2 na bomba (tanque: 260.0L)
+[SimTime(value=2.0)]: Car 1 concluiu (tanque: 260.0L)
+...
+[SimTime(value=50.0)]: Caminhão chegou — abastecendo 300.0L
+[SimTime(value=50.0)]: Caminhão concluiu (tanque: ...)
+...</div>
+
+      <h2>Pontos de interesse</h2>
+      <ul>
+        <li>Carros com chegada simultânea (ex: Car 1 em t=0) disputam as bombas por ordem de registro.</li>
+        <li>O <code>SimContainer</code> bloqueia <code>ctx.get()</code> se o tanque não tiver combustível suficiente — útil para simular escassez.</li>
+        <li>O caminhão usa <code>ctx.put()</code>, que pode liberar carros bloqueados aguardando combustível.</li>
+        <li>As 2 bombas paralelas permitem dois carros sendo atendidos simultaneamente.</li>
+      </ul>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('example-gas-station.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

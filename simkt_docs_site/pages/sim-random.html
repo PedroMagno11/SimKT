@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimRandomProvider no SimKT: gerador de números pseudo-aleatórios com seed. nextDouble, nextInt, nextLong, nextBoolean. Acessível via env.random.">
+  <title>SimRandomProvider | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimRandomProvider</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimRandomProvider(seed: Long? = null)</code> — acessível via <code>env.random</code>
+      </div>
+      <p class="page-intro">
+        <code>SimRandomProvider</code> é o gerador de números pseudo-aleatórios da simulação.
+        Com uma seed fixa, toda execução produz exatamente os mesmos resultados — essencial
+        para simulações reproduzíveis. Use via <code>ctx.env.random</code> dentro de processos.
+      </p>
+
+      <h2>Como definir a seed</h2>
+      <p>Passe <code>randomSeed</code> no <code>SimConfig</code> — é a forma recomendada:</p>
+<pre><code class="language-kotlin">env.run(SimConfig(until = SimTime(100.0), randomSeed = 42L))</code></pre>
+      <p>Ou diretamente no construtor do <code>Environment</code>:</p>
+<pre><code class="language-kotlin">val env = Environment(random = SimRandomProvider(seed = 42L))</code></pre>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>reseed(seed: Long)</td><td>Unit</td><td>Redefine o gerador com uma nova seed. Chamado automaticamente por <code>env.run(SimConfig(randomSeed = N))</code>.</td></tr>
+          <tr><td>nextInt()</td><td>Int</td><td>Inteiro aleatório sem restrição de intervalo.</td></tr>
+          <tr><td>nextInt(from: Int, until: Int)</td><td>Int</td><td>Inteiro em <code>[from, until)</code>.</td></tr>
+          <tr><td>nextLong()</td><td>Long</td><td>Long aleatório sem restrição.</td></tr>
+          <tr><td>nextLong(from: Long, until: Long)</td><td>Long</td><td>Long em <code>[from, until)</code>.</td></tr>
+          <tr><td>nextDouble()</td><td>Double</td><td>Double em <code>[0.0, 1.0)</code>.</td></tr>
+          <tr><td>nextDouble(from: Double, until: Double)</td><td>Double</td><td>Double em <code>[from, until)</code>.</td></tr>
+          <tr><td>nextBoolean()</td><td>Boolean</td><td>Verdadeiro ou falso com probabilidade 50%.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplos</h2>
+
+      <h3>Intervalos de chegada aleatórios</h3>
+<pre><code class="language-kotlin">val env = Environment()
+
+env.process(SimProcess { ctx ->
+    repeat(5) { i ->
+        val intervalo = ctx.env.random.nextDouble(1.0, 8.0)
+        ctx.hold(intervalo)
+        ctx.env.monitor.record(ctx.now, "chegada $i (intervalo: ${"%.2f".format(intervalo)})")
+    }
+})
+
+env.run(SimConfig(until = SimTime(100.0), randomSeed = 7L))
+env.monitor.printAll()</code></pre>
+
+      <h3>Simulação reproduzível</h3>
+<pre><code class="language-kotlin">// Ambas as execuções produzem exatamente os mesmos resultados
+fun rodar() {
+    val env = Environment()
+    env.process(SimProcess { ctx ->
+        val v = ctx.env.random.nextDouble(0.0, 100.0)
+        ctx.env.monitor.record(SimTime(0.0), "valor: $v")
+    })
+    env.run(SimConfig(randomSeed = 42L))
+    env.monitor.printAll()
+}
+
+rodar()
+rodar() // saída idêntica à primeira</code></pre>
+
+      <div class="callout">
+        Sem seed, o gerador usa <code>Random.Default</code> do Kotlin — diferente a cada execução.
+        Use sempre uma seed em testes automatizados.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-random.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

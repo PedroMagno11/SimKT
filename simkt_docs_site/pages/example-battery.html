@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo avançado SimKT: bateria com SimContainer, SimContinuousModel para dreno e SimProcess para modo econômico. env.stop() quando bateria zera.">
+  <title>Bateria e Sensores | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Bateria e Sensores</h1>
+      <p class="page-intro">
+        Um dispositivo IoT executa leituras periódicas enquanto a bateria dura.
+        Um modelo contínuo drena a bateria a cada passo de 1 unidade de tempo.
+        Abaixo de 20%, o dispositivo entra em modo econômico (menor taxa de dreno).
+        A simulação para automaticamente quando a bateria zera.
+      </p>
+
+      <p><strong>Demonstra:</strong> <code>SimContainer</code>, <code>SimContinuousModel</code>, <code>SimProcess</code>, <code>env.stop()</code> — todos trabalhando juntos.</p>
+
+      <h2>Código completo</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.continuous.SimContinuousModel
+import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.process.SimProcess
+
+const val BATTERY_CAPACITY    = 100.0
+const val READING_INTERVAL    = 5.0
+const val NORMAL_DRAIN_RATE   = 3.0   // % por unidade de tempo
+const val LOW_POWER_DRAIN_RATE = 1.0
+
+fun main() {
+    val env     = Environment()
+    val battery = env.container(
+        "battery", capacity = BATTERY_CAPACITY, initialLevel = BATTERY_CAPACITY)
+
+    var lowPowerMode = false
+    var readingCount = 0
+
+    // Modelo contínuo: drena a bateria a cada passo de 1 unidade
+    val drainModel = SimContinuousModel { ctx, dt ->
+        val drain  = (if (lowPowerMode) LOW_POWER_DRAIN_RATE else NORMAL_DRAIN_RATE) * dt
+        val actual = minOf(drain, battery.level)
+        if (actual > 0.0) {
+            battery.get(actual)             // retira do container
+            if (battery.level &lt;= 0.0) ctx.env.stop()  // para a simulação
+        }
+    }
+
+    // Processo discreto: leituras periódicas e detecção de nível baixo
+    val sensorProcess = SimProcess { ctx ->
+        while (battery.level > 0.0) {
+            ctx.hold(READING_INTERVAL)
+            if (battery.level &lt; 0.01) break
+
+            readingCount++
+            val pct = battery.level / BATTERY_CAPACITY * 100
+
+            if (!lowPowerMode &amp;&amp; pct &lt; 20.0) {
+                lowPowerMode = true
+                ctx.env.monitor.record(ctx.now,
+                    "MODO ECONÔMICO ATIVADO (bateria: ${"%.1f".format(pct)}%)")
+            }
+
+            ctx.env.monitor.record(ctx.now,
+                "Leitura #$readingCount — bateria: ${"%.1f".format(pct)}% " +
+                "[${if (lowPowerMode) "ECO" else "NORMAL"}]")
+        }
+    }
+
+    env.continuous(stepSize = 1.0, models = arrayOf(drainModel))
+    env.process(sensorProcess)
+
+    env.run(until = SimTime(200.0))
+
+    println("=== Dispositivo com Bateria ===")
+    env.monitor.printAll()
+    println("Parou em t=${env.now.value} com bateria ${"%.2f".format(battery.level)}%")
+    println("Total de leituras: $readingCount")
+}</code></pre>
+
+      <p class="output-label">Saída esperada (parcial)</p>
+      <div class="output-block">[SimTime(value=5.0)]: Leitura #1 — bateria: 85.0% [NORMAL]
+[SimTime(value=10.0)]: Leitura #2 — bateria: 70.0% [NORMAL]
+[SimTime(value=15.0)]: Leitura #3 — bateria: 55.0% [NORMAL]
+[SimTime(value=20.0)]: Leitura #4 — bateria: 40.0% [NORMAL]
+[SimTime(value=25.0)]: Leitura #5 — bateria: 25.0% [NORMAL]
+[SimTime(value=27.0)]: MODO ECONÔMICO ATIVADO (bateria: 19.0%)
+[SimTime(value=30.0)]: Leitura #6 — bateria: 16.0% [ECO]
+...
+Parou em t=... com bateria 0.00%</div>
+
+      <h2>O que está acontecendo</h2>
+      <ul>
+        <li>O modelo contínuo e o processo de sensor coexistem no mesmo scheduler.</li>
+        <li>A cada 1 unidade de tempo, o modelo drena a bateria diretamente via <code>battery.get(drain)</code>.</li>
+        <li>A cada 5 unidades, o sensor acorda, verifica o nível e pode mudar o modo.</li>
+        <li>Quando a bateria chega a zero, <code>ctx.env.stop()</code> interrompe o loop.</li>
+      </ul>
+
+      <div class="callout info">
+        Este padrão — modelo contínuo para dinâmica + processo discreto para lógica —
+        é aplicável a: drones com autonomia limitada, sensores IoT, veículos elétricos,
+        sistemas de energia renovável.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('example-battery.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

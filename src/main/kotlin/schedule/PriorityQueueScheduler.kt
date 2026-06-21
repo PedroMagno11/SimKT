@@ -4,7 +4,7 @@ import br.com.pedromagno.event.SimEvent
 import br.com.pedromagno.event.SimScheduledEvent
 import java.util.PriorityQueue
 
-class PriorityQueueScheduler : ISimScheduler {
+internal class PriorityQueueScheduler : SimScheduler {
 
     private val eventsQueue = PriorityQueue<SimScheduledEvent>()
     private var sequenceCounter: Long = 0L

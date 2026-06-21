@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimConfig no SimKT: until, maxEvents, randomSeed — configuração declarativa para env.run().">
+  <title>SimConfig | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimConfig</h1>
+      <div class="sig-block">
+        <span class="tag tag-data">data class</span>
+        <code>SimConfig(until: SimTime? = null, maxEvents: Long? = null, randomSeed: Long? = null)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimConfig</code> agrupa as configurações de execução da simulação em um objeto declarativo.
+        Passe para <code>env.run(config)</code> quando quiser combinar limite de tempo, limite de eventos
+        e seed de aleatoriedade em um único lugar.
+      </p>
+
+      <h2>Campos</h2>
+      <table class="api-table">
+        <thead><tr><th>Campo</th><th>Tipo</th><th>Padrão</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>until</td><td>SimTime?</td><td>null</td><td>Tempo máximo de simulação. A execução para quando o próximo evento ultrapassar este limite. <code>null</code> = sem limite de tempo.</td></tr>
+          <tr><td>maxEvents</td><td>Long?</td><td>null</td><td>Número máximo de eventos a processar. Útil para testes e para evitar loops infinitos. <code>null</code> = sem limite de eventos.</td></tr>
+          <tr><td>randomSeed</td><td>Long?</td><td>null</td><td>Se fornecido, chama <code>env.random.reseed(seed)</code> antes de executar. Garante resultados reproduzíveis com <code>env.random</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplos</h2>
+
+      <h3>Apenas limite de tempo</h3>
+<pre><code class="language-kotlin">env.run(SimConfig(until = SimTime(100.0)))</code></pre>
+
+      <h3>Simulação reproduzível</h3>
+<pre><code class="language-kotlin">// Com seed fixo, o mesmo cenário gera os mesmos resultados sempre
+env.run(SimConfig(until = SimTime(100.0), randomSeed = 42L))</code></pre>
+
+      <h3>Limite de eventos para testes</h3>
+<pre><code class="language-kotlin">// Processa no máximo 50 eventos — útil para verificar comportamento inicial
+env.run(SimConfig(maxEvents = 50L))</code></pre>
+
+      <h3>Configuração completa</h3>
+<pre><code class="language-kotlin">val config = SimConfig(
+    until       = SimTime(3600.0), // 1 hora de tempo virtual
+    maxEvents   = 10_000L,         // limite de segurança
+    randomSeed  = 123L             // resultado reproduzível
+)
+
+env.run(config)</code></pre>
+
+      <div class="callout info">
+        Se tanto <code>until</code> quanto <code>maxEvents</code> forem fornecidos, a execução
+        para quando <strong>qualquer um</strong> dos dois limites for atingido.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-config.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

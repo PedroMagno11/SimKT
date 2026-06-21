@@ -1,4 +1,4 @@
-package br.com.pedromagno.store
+package br.com.pedromagno.communication.queue
 
 import br.com.pedromagno.core.Environment
 import br.com.pedromagno.event.SimEvent

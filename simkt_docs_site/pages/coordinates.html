@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência das classes de coordenadas no SimKT: CoordXY, CoordXYZ, CoordGeo (Haversine), CoordPolar. Interface Coord com distanceTo.">
+  <title>Coordenadas | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Coordenadas</h1>
+      <p class="page-intro">
+        O SimKT inclui quatro implementações de sistema de coordenadas para modelar posições
+        em simulações espaciais (drones, radares, sensores, veículos). Todas implementam
+        a interface <code>Coord&lt;C&gt;</code> com o método <code>distanceTo(other: C): Double</code>.
+      </p>
+
+      <h2>Interface Coord</h2>
+      <div class="sig-block">
+        <span class="tag tag-interface">interface</span>
+        <code>Coord&lt;C&gt; { fun distanceTo(other: C): Double }</code>
+      </div>
+      <p>
+        Todas as implementações são <code>data class</code> com campos mutáveis (<code>var</code>),
+        permitindo atualizar a posição de um objeto ao longo da simulação.
+      </p>
+
+      <h2>CoordXY — Cartesiano 2D</h2>
+      <div class="sig-block">
+        <span class="tag tag-data">data class</span>
+        <code>CoordXY(var x: Double, var y: Double)</code>
+      </div>
+      <p>Distância euclidiana: √((x₂-x₁)² + (y₂-y₁)²).</p>
+<pre><code class="language-kotlin">val sensor = CoordXY(0.0, 0.0)
+val alvo   = CoordXY(3.0, 4.0)
+
+println(sensor.distanceTo(alvo)) // 5.0
+
+// Atualizar posição do alvo ao longo do tempo
+alvo.x = 6.0
+alvo.y = 8.0
+println(sensor.distanceTo(alvo)) // 10.0</code></pre>
+
+      <h2>CoordXYZ — Cartesiano 3D</h2>
+      <div class="sig-block">
+        <span class="tag tag-data">data class</span>
+        <code>CoordXYZ(var x: Double, var y: Double, var z: Double)</code>
+      </div>
+      <p>Distância euclidiana 3D: √((x₂-x₁)² + (y₂-y₁)² + (z₂-z₁)²). Use para drones com altitude.</p>
+<pre><code class="language-kotlin">val base  = CoordXYZ(0.0, 0.0, 0.0)
+val drone = CoordXYZ(100.0, 100.0, 50.0)
+
+println("distância: ${"%.2f".format(base.distanceTo(drone))}m")
+// distância: 150.00m</code></pre>
+
+      <h2>CoordGeo — Geográfico (lat/lng)</h2>
+      <div class="sig-block">
+        <span class="tag tag-data">data class</span>
+        <code>CoordGeo(var lat: Double, var lng: Double)</code>
+      </div>
+      <p>Distância em metros usando a fórmula de Haversine (raio da Terra = 6.371.000 m).</p>
+<pre><code class="language-kotlin">// Aeroporto de Guarulhos → Centro de São Paulo
+val guarulhos = CoordGeo(lat = -23.4356, lng = -46.4731)
+val centroSP  = CoordGeo(lat = -23.5505, lng = -46.6333)
+
+val dist = guarulhos.distanceTo(centroSP)
+println("distância: ${"%.0f".format(dist)}m") // ~26.000m</code></pre>
+
+      <h2>CoordPolar — Polar (bearing/distance)</h2>
+      <div class="sig-block">
+        <span class="tag tag-data">data class</span>
+        <code>CoordPolar(var bearing: Double, var distance: Double)</code>
+      </div>
+      <p>
+        <code>bearing</code> é o ângulo em graus (0–360). <code>distance</code> é o raio.
+        Distância calculada pela Lei dos Cossenos.
+        Útil para radares que reportam alvos em coordenadas polares.
+      </p>
+<pre><code class="language-kotlin">val radar = CoordPolar(bearing = 0.0, distance = 0.0)   // origem
+val alvo  = CoordPolar(bearing = 45.0, distance = 100.0) // 45° a 100 km
+
+println("distância: ${"%.2f".format(radar.distanceTo(alvo))}") // ~70.71</code></pre>
+
+      <h2>Uso em simulação</h2>
+<pre><code class="language-kotlin">val env = Environment()
+
+data class Drone(val nome: String, val pos: CoordXY)
+
+val drone = Drone("UAV-01", CoordXY(0.0, 0.0))
+val base  = CoordXY(100.0, 100.0)
+
+env.process(SimProcess { ctx ->
+    val velocidade = 10.0 // unidades por tempo
+
+    repeat(10) {
+        ctx.hold(1.0)
+        // Move o drone em direção à base
+        drone.pos.x += velocidade * 0.7
+        drone.pos.y += velocidade * 0.7
+
+        val dist = drone.pos.distanceTo(base)
+        ctx.env.monitor.record(ctx.now,
+            "${drone.nome}: pos=(${drone.pos.x}, ${drone.pos.y}) dist=${"%.1f".format(dist)}")
+
+        if (dist < 5.0) {
+            ctx.env.monitor.record(ctx.now, "${drone.nome}: chegou à base!")
+            ctx.env.stop()
+        }
+    }
+})
+
+env.run()
+env.monitor.printAll()</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('coordinates.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

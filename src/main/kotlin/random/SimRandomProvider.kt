@@ -4,7 +4,11 @@ import kotlin.random.Random
 
 class SimRandomProvider(seed: Long? = null) {
 
-    private val random: Random = seed ?.let { Random(it) } ?: Random.Default
+    private var random: Random = seed?.let { Random(it) } ?: Random.Default
+
+    fun reseed(seed: Long) {
+        random = Random(seed)
+    }
 
     fun nextInt(): Int{
         return random.nextInt()

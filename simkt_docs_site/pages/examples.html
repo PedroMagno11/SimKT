@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplos completos e executáveis do SimKT: sensor básico, recursos, canais, produtor-consumidor, posto de combustível, controle de missão, bateria e modelos contínuos.">
+  <title>Exemplos | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Exemplos</h1>
+      <p class="page-intro">
+        Todos os exemplos abaixo são extraídos diretamente do código-fonte do SimKT
+        (<code>src/test/kotlin/.../examples/</code>), são completamente funcionais e incluem a saída esperada.
+      </p>
+
+      <h2>Por nível de complexidade</h2>
+
+      <h3>Introdutório</h3>
+      <div class="example-grid">
+        <a class="example-card" href="example-basic-sensor.html">
+          <div class="ex-tag">SimProcess · SimMonitor</div>
+          <h3>Sensor Básico</h3>
+          <p>Um processo com <code>hold()</code> que registra leituras em três instantes. O exemplo mínimo funcional do SimKT.</p>
+        </a>
+        <a class="example-card" href="example-resource.html">
+          <div class="ex-tag">SimResource</div>
+          <h3>Recurso Compartilhado</h3>
+          <p>Três processos disputando uma antena de capacidade 1. Mostra fila de espera e liberação automática.</p>
+        </a>
+      </div>
+
+      <h3>Intermediário</h3>
+      <div class="example-grid">
+        <a class="example-card" href="example-channel.html">
+          <div class="ex-tag">SimChannel</div>
+          <h3>Canal de Comunicação</h3>
+          <p>Um processo envia uma mensagem via <code>SimChannel</code> e outro a recebe. Modela uma transmissão por rádio.</p>
+        </a>
+        <a class="example-card" href="example-producer-consumer.html">
+          <div class="ex-tag">SimQueue · múltiplos processos</div>
+          <h3>Produtor-Consumidor</h3>
+          <p>Dois produtores e três consumidores compartilham uma fila limitada. Producers bloqueiam quando cheia.</p>
+        </a>
+        <a class="example-card" href="drone-radar.html">
+          <div class="ex-tag">SimTopic · SimEntity</div>
+          <h3>Drone e Radar</h3>
+          <p>Radar detecta drone e publica no <code>SimTopic</code>. Central de vigilância recebe via ouvinte.</p>
+        </a>
+        <a class="example-card" href="example-continuous.html">
+          <div class="ex-tag">SimContinuousModel</div>
+          <h3>Movimento Contínuo</h3>
+          <p>Um objeto se move a velocidade constante. Posição atualizada a cada passo fixo dentro do loop discreto.</p>
+        </a>
+      </div>
+
+      <h3>Avançado</h3>
+      <div class="example-grid">
+        <a class="example-card" href="example-gas-station.html">
+          <div class="ex-tag">SimResource · SimContainer · SimProcess</div>
+          <h3>Posto de Combustível</h3>
+          <p>Carros chegam, disputam bombas (<code>SimResource</code>) e consomem combustível do tanque (<code>SimContainer</code>). Um caminhão-tanque reabastece no meio da simulação.</p>
+        </a>
+        <a class="example-card" href="example-mission-control.html">
+          <div class="ex-tag">SimEntity · Simulation · SimResource · SimChannel</div>
+          <h3>Controle de Missão</h3>
+          <p>Três UAVs (<code>SimEntity</code>) compartilham um uplink de satélite (<code>SimResource</code>) e enviam telemetria para uma estação de controle via <code>SimChannel</code>.</p>
+        </a>
+        <a class="example-card" href="example-battery.html">
+          <div class="ex-tag">SimContainer · SimContinuousModel · env.stop()</div>
+          <h3>Bateria e Sensores</h3>
+          <p>Modelo contínuo drena a bateria por taxa variável. Processo discreto ativa modo econômico abaixo de 20%. Simulação para quando a bateria zera.</p>
+        </a>
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('examples.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

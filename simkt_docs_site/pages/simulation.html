@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência da classe Simulation do SimKT: fachada com nome, addEntity, addProcess, run e printReport.">
+  <title>Simulation | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Simulation</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>Simulation(name: String, env: Environment = Environment())</code>
+      </div>
+      <p class="page-intro">
+        <code>Simulation</code> é uma fachada opcional sobre <code>Environment</code>.
+        Ela adiciona um nome identificável à simulação, gerencia uma lista de entidades
+        (<code>SimEntity</code>) e oferece <code>printReport()</code> para inspecionar o estado final.
+        Toda a lógica real continua no <code>Environment</code> subjacente.
+      </p>
+
+      <div class="callout info">
+        Se você não precisar de entidades (<code>SimEntity</code>) ou de um relatório,
+        use <code>Environment</code> diretamente — é mais simples.
+      </div>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>name</td><td>String</td><td>Nome da simulação, usado em <code>printReport()</code>.</td></tr>
+          <tr><td>env</td><td>Environment</td><td>O <code>Environment</code> subjacente. Use para criar primitivos, acessar <code>env.now</code>, etc.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>addEntity(entity: SimEntity)</td><td>Simulation</td><td>Registra uma entidade e chama <code>entity.onCreate(env)</code> imediatamente. Retorna <code>this</code> para encadeamento.</td></tr>
+          <tr><td>addProcess(process: SimProcess)</td><td>Simulation</td><td>Delega para <code>env.process(process)</code>. Retorna <code>this</code>.</td></tr>
+          <tr><td>run(until: Double)</td><td>Unit</td><td>Executa o loop de eventos até o tempo especificado (convertido internamente para <code>SimTime</code>).</td></tr>
+          <tr><td>printReport()</td><td>Unit</td><td>Imprime nome, tempo atual, quantidade de entidades e todo o log do monitor.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplo completo</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Simulation
+import br.com.pedromagno.core.SimEntity
+import br.com.pedromagno.process.SimProcess
+
+class Sensor(name: String) : SimEntity(name = name) {
+    override fun onCreate(env: br.com.pedromagno.core.Environment) {
+        super.onCreate(env)
+        env.process(SimProcess { ctx ->
+            repeat(3) {
+                ctx.hold(10.0)
+                ctx.env.monitor.record(ctx.now, "$name: leitura")
+            }
+        })
+    }
+}
+
+fun main() {
+    val sim = Simulation("Rede de Sensores")
+
+    sim.addEntity(Sensor("Sensor-A"))
+    sim.addEntity(Sensor("Sensor-B"))
+
+    sim.run(until = 40.0)
+    sim.printReport()
+}</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">Simulation: Rede de Sensores
+Time: SimTime(value=30.0)
+Entities: 2
+[SimTime(value=10.0)]: Sensor-A: leitura
+[SimTime(value=10.0)]: Sensor-B: leitura
+[SimTime(value=20.0)]: Sensor-A: leitura
+[SimTime(value=20.0)]: Sensor-B: leitura
+[SimTime(value=30.0)]: Sensor-A: leitura
+[SimTime(value=30.0)]: Sensor-B: leitura</div>
+
+      <h2>Encadeamento fluente</h2>
+<pre><code class="language-kotlin">val sim = Simulation("Pipeline")
+    .apply {
+        addEntity(Sensor("A"))
+        addEntity(Sensor("B"))
+        addProcess(SimProcess { ctx ->
+            ctx.hold(1.0)
+            ctx.env.monitor.record(ctx.now, "Monitor iniciado")
+        })
+    }
+
+sim.run(until = 50.0)
+sim.printReport()</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('simulation.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

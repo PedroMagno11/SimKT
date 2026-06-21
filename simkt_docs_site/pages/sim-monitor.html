@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimMonitor no SimKT: log de eventos com record, all, printAll e clear. Acessível via env.monitor.">
+  <title>SimMonitor | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimMonitor</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimMonitor</code> — acessível via <code>env.monitor</code>
+      </div>
+      <p class="page-intro">
+        <code>SimMonitor</code> é um log de texto simples e cronológico. Armazena mensagens
+        associadas a instantes de tempo virtual, tornando fácil depurar o que aconteceu e quando.
+        Está disponível em todo processo via <code>ctx.env.monitor</code>.
+      </p>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>record(time: SimTime, message: String)</td><td>Unit</td><td>Adiciona uma entrada ao log no formato <code>[SimTime(value=X)]: mensagem</code>. As entradas são armazenadas na ordem em que foram chamadas.</td></tr>
+          <tr><td>all(): List&lt;String&gt;</td><td>List&lt;String&gt;</td><td>Retorna cópia imutável de todas as entradas. Útil para asserções em testes.</td></tr>
+          <tr><td>printAll()</td><td>Unit</td><td>Imprime todas as entradas em <code>stdout</code>.</td></tr>
+          <tr><td>clear()</td><td>Unit</td><td>Remove todas as entradas. Chamado automaticamente por <code>env.reset()</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Uso dentro de processos</h2>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    ctx.hold(5.0)
+    // ctx.now é o SimTime atual
+    ctx.env.monitor.record(ctx.now, "evento ocorreu")
+
+    ctx.hold(3.0)
+    ctx.env.monitor.record(ctx.now, "segundo evento")
+})
+
+env.run(until = SimTime(20.0))
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída</p>
+      <div class="output-block">[SimTime(value=5.0)]: evento ocorreu
+[SimTime(value=8.0)]: segundo evento</div>
+
+      <h2>Uso em testes</h2>
+<pre><code class="language-kotlin">@Test
+fun `sensor deve registrar 3 leituras`() {
+    val env = Environment()
+
+    env.process(SimProcess { ctx ->
+        repeat(3) {
+            ctx.hold(10.0)
+            ctx.env.monitor.record(ctx.now, "leitura")
+        }
+    })
+
+    env.run(until = SimTime(40.0))
+
+    val log = env.monitor.all()
+    assertEquals(3, log.size)
+    assertTrue(log[0].contains("10.0"))
+    assertTrue(log[1].contains("20.0"))
+    assertTrue(log[2].contains("30.0"))
+}</code></pre>
+
+      <h2>Reutilizar o Environment</h2>
+<pre><code class="language-kotlin">// Cenário 1
+env.process(SimProcess { ctx -> ctx.hold(5.0) })
+env.run(until = SimTime(10.0))
+env.monitor.printAll()
+
+// Limpa e roda cenário 2
+env.reset()  // chama monitor.clear() internamente
+
+env.process(SimProcess { ctx -> ctx.hold(3.0) })
+env.run(until = SimTime(10.0))
+env.monitor.printAll()</code></pre>
+
+      <div class="callout info">
+        O monitor armazena as mensagens na <strong>ordem de inserção</strong> (não por tempo).
+        Em eventos simultâneos (mesmo <code>SimTime</code>), a ordem de registro depende da
+        ordem de execução dos processos.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-monitor.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

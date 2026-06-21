@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimTopic no SimKT: pub/sub síncrono por nome de evento. on, emit. Substitui o antigo EventBus.">
+  <title>SimTopic | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimTopic</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimTopic&lt;T&gt;</code>
+      </div>
+      <p class="page-intro">
+        <code>SimTopic&lt;T&gt;</code> implementa um barramento pub/sub síncrono por nome de evento.
+        Componentes registram ouvintes com <code>on()</code> e publicam mensagens com <code>emit()</code>.
+        A entrega é imediata e síncrona — sem integração com o relógio virtual.
+      </p>
+
+      <div class="callout warning">
+        <strong>Diferença importante.</strong> <code>SimTopic</code> entrega eventos de forma
+        <em>síncrona</em> — <code>emit()</code> chama todos os ouvintes na mesma thread, na mesma
+        unidade de tempo, sem criar eventos no scheduler. Para comunicação com integração ao
+        tempo virtual, use <a href="sim-channel.html">SimChannel</a>.
+      </div>
+
+      <h2>Quando usar SimTopic vs SimChannel</h2>
+      <table class="api-table">
+        <thead><tr><th></th><th>SimTopic</th><th>SimChannel</th></tr></thead>
+        <tbody>
+          <tr><td>Entrega</td><td>Síncrona, imediata</td><td>Assíncrona, via scheduler</td></tr>
+          <tr><td>Múltiplos ouvintes</td><td>Sim (N ouvintes por nome)</td><td>Não (1 receiver por vez)</td></tr>
+          <tr><td>Integração com tempo</td><td>Não</td><td>Sim</td></tr>
+          <tr><td>Backpressure</td><td>Não</td><td>Sim (buffer limitado)</td></tr>
+          <tr><td>Caso de uso típico</td><td>Notificações, telemetria broadcast</td><td>Pipelines de dados, protocolo</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>on(eventName: String, action: (Any?) -> Unit)</td><td>Registra um ouvinte para o nome de evento dado. Múltiplos ouvintes por nome são suportados.</td></tr>
+          <tr><td>emit(eventName: String, payload: Any? = null)</td><td>Entrega o payload a todos os ouvintes registrados para <code>eventName</code>. Se ninguém ouvir, não faz nada.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Criação</h2>
+      <p><code>SimTopic</code> é instanciado diretamente — não é criado pelo <code>Environment</code>.</p>
+<pre><code class="language-kotlin">val topico = SimTopic&lt;String&gt;()</code></pre>
+
+      <h2>Exemplo: radar notificando central</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.communication.topic.SimTopic
+
+val env = Environment()
+val topico = SimTopic&lt;String&gt;()
+
+// Central registra ouvinte antes da simulação começar
+topico.on("detection") { payload ->
+    val alvo = payload as? String ?: return@on
+    env.monitor.record(env.now, "Central: detectou $alvo")
+}
+
+// Radar emite evento quando detecta algo
+env.process(SimProcess { ctx ->
+    ctx.hold(5.0)
+    topico.emit("detection", "drone-01")
+
+    ctx.hold(3.0)
+    topico.emit("detection", "drone-02")
+})
+
+env.run(until = SimTime(20.0))
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">[SimTime(value=5.0)]: Central: detectou drone-01
+[SimTime(value=8.0)]: Central: detectou drone-02</div>
+
+      <h2>Múltiplos ouvintes</h2>
+<pre><code class="language-kotlin">val alerta = SimTopic&lt;String&gt;()
+
+// Vários sistemas assinam o mesmo tópico
+alerta.on("intruso") { println("Sistema A: alerta!") }
+alerta.on("intruso") { println("Sistema B: alerta!") }
+alerta.on("intruso") { println("Log: intrusão registrada") }
+
+// Todos os 3 recebem quando emit() é chamado
+alerta.emit("intruso", "setor-norte")</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-topic.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>
