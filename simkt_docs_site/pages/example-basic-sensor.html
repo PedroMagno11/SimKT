@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo SimKT: sensor básico com SimProcess e hold(). O exemplo mínimo funcional da biblioteca.">
+  <title>Sensor Básico | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Sensor Básico</h1>
+      <p class="page-intro">
+        O exemplo mais simples do SimKT: um processo que avança três vezes no tempo com
+        <code>hold()</code> e registra leituras no monitor.
+        É o ponto de partida ideal para entender como processos funcionam.
+      </p>
+
+      <p><strong>Demonstra:</strong> <code>SimProcess</code>, <code>hold()</code>, <code>SimMonitor</code>, <code>env.run(until)</code></p>
+
+      <h2>Código</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.process.SimProcess
+import br.com.pedromagno.process.SimProcessContext
+
+class BasicSensorProcess : SimProcess {
+    override suspend fun run(context: SimProcessContext) {
+        context.env.monitor.record(context.now, "Sensor iniciado")
+
+        context.hold(5.0)
+        context.env.monitor.record(context.now, "Sensor fez a primeira leitura")
+
+        context.hold(5.0)
+        context.env.monitor.record(context.now, "Sensor detectou alvo")
+    }
+}
+
+fun main() {
+    val env = Environment()
+    env.process(BasicSensorProcess())
+    env.run(until = SimTime(20.0))
+    env.monitor.printAll()
+}</code></pre>
+
+      <p class="output-label">Saída</p>
+      <div class="output-block">[SimTime(value=0.0)]: Sensor iniciado
+[SimTime(value=5.0)]: Sensor fez a primeira leitura
+[SimTime(value=10.0)]: Sensor detectou alvo</div>
+
+      <h2>O que está acontecendo</h2>
+      <ul>
+        <li>O processo começa em t=0 e registra "Sensor iniciado" imediatamente.</li>
+        <li><code>context.hold(5.0)</code> suspende o processo por 5 unidades de tempo virtuais.</li>
+        <li>Em t=5, o processo retoma e registra a segunda mensagem.</li>
+        <li>Em t=10, retoma novamente e registra a terceira.</li>
+        <li>O processo termina. <code>env.run(until = 20.0)</code> para porque não há mais eventos.</li>
+      </ul>
+
+      <h2>Variante com lambda</h2>
+<pre><code class="language-kotlin">// A mesma lógica com fun interface em lambda
+val env = Environment()
+
+env.process(SimProcess { ctx ->
+    ctx.env.monitor.record(ctx.now, "Sensor iniciado")
+    ctx.hold(5.0)
+    ctx.env.monitor.record(ctx.now, "Sensor fez a primeira leitura")
+    ctx.hold(5.0)
+    ctx.env.monitor.record(ctx.now, "Sensor detectou alvo")
+})
+
+env.run(until = SimTime(20.0))
+env.monitor.printAll()</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('example-basic-sensor.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

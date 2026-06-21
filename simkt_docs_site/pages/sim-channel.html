@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimChannel no SimKT: canal FIFO tipado com backpressure para comunicação entre processos. send, receive, size.">
+  <title>SimChannel | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimChannel</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimChannel&lt;T&gt;(env, name: String, capacity: Int = Int.MAX_VALUE)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimChannel&lt;T&gt;</code> é um canal de comunicação FIFO tipado entre processos.
+        Producers enviam valores com <code>ctx.send()</code> e consumers recebem com <code>ctx.receive()</code>.
+        Se o buffer estiver cheio, o producer suspende. Se estiver vazio, o consumer suspende.
+        Modela rádios, links UDP, MQTT, pipelines de telemetria, barramentos internos.
+      </p>
+
+      <div class="callout info">
+        <strong>SimChannel vs SimTopic:</strong> <code>SimChannel</code> é integrado ao scheduler
+        (send/receive participam do tempo virtual). <a href="sim-topic.html">SimTopic</a> é pub/sub
+        síncrono sem integração com o tempo — use quando quiser notificação imediata sem suspensão.
+      </div>
+
+      <h2>Criação</h2>
+<pre><code class="language-kotlin">// Buffer ilimitado (sem backpressure)
+val radio = env.channel&lt;String&gt;("radio")
+
+// Buffer limitado — producer bloqueia quando cheio
+val telemetria = env.channel&lt;Telemetry&gt;("telemetria", capacity = 10)</code></pre>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>name</td><td>String</td><td>Identificador do canal.</td></tr>
+          <tr><td>capacity</td><td>Int</td><td>Capacidade do buffer.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>send(value: T): SimEvent&lt;Unit&gt;</td><td>SimEvent</td><td>Enfileira um valor. Suspende o producer se o buffer estiver cheio e não houver receiver esperando.</td></tr>
+          <tr><td>receive(): SimEvent&lt;T&gt;</td><td>SimEvent&lt;T&gt;</td><td>Defileira um valor. Suspende o consumer se o buffer estiver vazio.</td></tr>
+          <tr><td>size()</td><td>Int</td><td>Itens atualmente no buffer.</td></tr>
+          <tr><td>waitingReceivers()</td><td>Int</td><td>Consumers suspensos aguardando itens.</td></tr>
+          <tr><td>waitingSenders()</td><td>Int</td><td>Producers suspensos aguardando espaço.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplo: produtor e consumidor básico</h2>
+<pre><code class="language-kotlin">data class Message(val id: Int, val payload: String)
+
+val env = Environment()
+val canal = env.channel&lt;Message&gt;("radio", capacity = 2)
+
+// Produtor
+env.process(SimProcess { ctx ->
+    repeat(4) { i ->
+        ctx.hold(1.0)
+        ctx.send(canal, Message(i, "dado-$i"))
+        ctx.env.monitor.record(ctx.now, "enviado: id=$i (buffer: ${canal.size()})")
+    }
+})
+
+// Consumidor (mais lento que o produtor)
+env.process(SimProcess { ctx ->
+    repeat(4) {
+        val msg = ctx.receive(canal)
+        ctx.env.monitor.record(ctx.now, "recebido: ${msg.payload}")
+        ctx.hold(2.0)  // processa por 2 unidades
+    }
+})
+
+env.run(until = SimTime(20.0))
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída esperada (aproximada)</p>
+      <div class="output-block">[SimTime(value=1.0)]: enviado: id=0 (buffer: 0)
+[SimTime(value=1.0)]: recebido: dado-0
+[SimTime(value=2.0)]: enviado: id=1 (buffer: 1)
+[SimTime(value=3.0)]: enviado: id=2 (buffer: 2)
+[SimTime(value=3.0)]: recebido: dado-1
+...</div>
+
+      <h2>Canal com múltiplos producers</h2>
+<pre><code class="language-kotlin">val env = Environment()
+val uplink = env.channel&lt;String&gt;("uplink", capacity = 5)
+
+// Dois UAVs enviando telemetria
+listOf("Alpha", "Bravo").forEach { nome ->
+    env.process(SimProcess { ctx ->
+        repeat(3) { i ->
+            ctx.hold(ctx.env.random.nextDouble(1.0, 4.0))
+            ctx.send(uplink, "$nome: leitura $i")
+        }
+    })
+}
+
+// Estação de controle processa o canal
+env.process(SimProcess { ctx ->
+    repeat(6) {
+        val msg = ctx.receive(uplink)
+        ctx.env.monitor.record(ctx.now, "GS: $msg")
+    }
+})
+
+env.run(SimConfig(until = SimTime(30.0), randomSeed = 42L))
+env.monitor.printAll()</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-channel.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

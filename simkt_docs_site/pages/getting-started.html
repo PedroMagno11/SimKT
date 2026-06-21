@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Guia de primeiros passos com SimKT: crie seu primeiro processo, agende eventos e execute uma simulação em menos de 10 minutos.">
+  <title>Primeiros Passos | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Primeiros Passos</h1>
+      <p class="page-intro">
+        SimKT modela sistemas como processos que avançam no tempo virtual com <code>hold()</code>.
+        Este guia leva você da instalação à primeira simulação funcional.
+      </p>
+
+      <div class="callout">
+        Antes de continuar, certifique-se de ter feito a <a href="installation.html">instalação</a> e que o JAR está disponível no classpath do seu projeto.
+      </div>
+
+      <h2>1. Criar o Environment</h2>
+      <p>
+        <code>Environment</code> é o coração da simulação. Ele mantém o relógio virtual,
+        a fila de eventos e expõe os primitivos de simulação.
+      </p>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.process.SimProcess
+
+val env = Environment()</code></pre>
+
+      <h2>2. Definir um processo</h2>
+      <p>
+        Um <code>SimProcess</code> é uma <em>fun interface</em> com um método suspenso.
+        Dentro do processo você usa <code>ctx.hold(delay)</code> para avançar o tempo
+        sem bloquear a thread.
+      </p>
+<pre><code class="language-kotlin">val sensor = SimProcess { ctx ->
+    ctx.env.monitor.record(ctx.now, "Sensor iniciado")
+
+    ctx.hold(5.0)   // avança 5 unidades de tempo
+    ctx.env.monitor.record(ctx.now, "Primeira leitura")
+
+    ctx.hold(5.0)   // avança mais 5
+    ctx.env.monitor.record(ctx.now, "Alvo detectado")
+}</code></pre>
+
+      <h2>3. Registrar o processo e executar</h2>
+      <p>
+        Registre o processo no <code>Environment</code> com <code>env.process()</code>
+        e chame <code>env.run()</code> para executar o loop de eventos.
+      </p>
+<pre><code class="language-kotlin">env.process(sensor)
+
+// Roda até t=20 ou até a fila de eventos se esgotar
+env.run(until = SimTime(20.0))
+
+// Imprime o log de eventos
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">[SimTime(value=0.0)]: Sensor iniciado
+[SimTime(value=5.0)]: Primeira leitura
+[SimTime(value=10.0)]: Alvo detectado</div>
+
+      <h2>4. Múltiplos processos concorrentes</h2>
+      <p>
+        Registre mais de um processo. O motor intercala automaticamente os eventos
+        em ordem de tempo.
+      </p>
+<pre><code class="language-kotlin">val env = Environment()
+
+env.process(SimProcess { ctx ->
+    ctx.hold(3.0)
+    ctx.env.monitor.record(ctx.now, "Processo A concluído")
+})
+
+env.process(SimProcess { ctx ->
+    ctx.hold(1.0)
+    ctx.env.monitor.record(ctx.now, "Processo B: passo 1")
+    ctx.hold(4.0)
+    ctx.env.monitor.record(ctx.now, "Processo B: passo 2")
+})
+
+env.run(until = SimTime(10.0))
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">[SimTime(value=1.0)]: Processo B: passo 1
+[SimTime(value=3.0)]: Processo A concluído
+[SimTime(value=5.0)]: Processo B: passo 2</div>
+
+      <div class="callout info">
+        Os processos executam em ordem de tempo, não de registro. O motor nunca bloqueia
+        entre eventos — o "tempo" entre t=1 e t=3 é instantâneo.
+      </div>
+
+      <h2>5. Usar a classe Simulation</h2>
+      <p>
+        Para simulações com múltiplas entidades, use <code>Simulation</code> como fachada.
+        Ela agrupa o <code>Environment</code>, as entidades e os processos.
+      </p>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Simulation
+
+val sim = Simulation("Minha Simulação")
+
+// Adicione processos
+sim.addProcess(SimProcess { ctx ->
+    ctx.hold(5.0)
+    ctx.env.monitor.record(ctx.now, "Evento principal")
+})
+
+sim.run(until = 10.0)
+sim.printReport()</code></pre>
+
+      <h2>Próximos passos</h2>
+      <div class="grid-two">
+        <a class="card" href="environment.html">
+          <h3>Environment</h3>
+          <p>API completa: timeout, eventAt, process, resource, channel, store, container.</p>
+        </a>
+        <a class="card" href="sim-process.html">
+          <h3>SimProcess</h3>
+          <p>Como processos funcionam com coroutines e o que você pode fazer dentro de um processo.</p>
+        </a>
+        <a class="card" href="sim-resource.html">
+          <h3>SimResource</h3>
+          <p>Recursos compartilhados com fila de espera automática.</p>
+        </a>
+        <a class="card" href="examples.html">
+          <h3>Exemplos</h3>
+          <p>Posto de combustível, produtor-consumidor, controle de missão e mais.</p>
+        </a>
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('getting-started.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimContinuousModel no SimKT: modelos de passo fixo integrados ao loop discreto. env.continuous(), step, deltaTime.">
+  <title>SimContinuousModel | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimContinuousModel</h1>
+      <div class="sig-block">
+        <span class="tag tag-fun">fun interface</span>
+        <code>SimContinuousModel { fun step(context: SimProcessContext, deltaTime: Double) }</code>
+      </div>
+      <p class="page-intro">
+        <code>SimContinuousModel</code> permite integrar dinâmicas de passo fixo (movimento,
+        consumo de bateria, sensores com ruído) dentro do loop de eventos discretos.
+        A cada <code>stepSize</code> unidades de tempo, todos os modelos registrados são chamados
+        com o <code>deltaTime</code> correspondente.
+      </p>
+
+      <div class="callout info">
+        <strong>Por que é útil?</strong> Simulações reais frequentemente misturam eventos discretos
+        ("radar detectou alvo") com dinâmicas contínuas ("posição do drone muda a 2 m/s").
+        <code>SimContinuousModel</code> une os dois mundos sem precisar de outro framework.
+      </div>
+
+      <h2>Como usar</h2>
+      <p>Registre um ou mais modelos com <code>env.continuous()</code>:</p>
+<pre><code class="language-kotlin">env.continuous(
+    stepSize = 1.0,           // executa a cada 1 unidade de tempo
+    until    = SimTime(10.0), // para em t=10 (opcional)
+    models   = arrayOf(meuModelo)
+)</code></pre>
+
+      <p>
+        Internamente, <code>env.continuous()</code> cria um <code>SimProcess</code> que chama
+        <code>model.step(ctx, stepSize)</code> a cada passo e depois faz <code>ctx.hold(stepSize)</code>.
+        Ele coexiste com todos os outros processos no mesmo scheduler.
+      </p>
+
+      <h2>Assinatura do step</h2>
+      <table class="api-table">
+        <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>context</td><td>SimProcessContext</td><td>Contexto do processo interno. Dá acesso a <code>ctx.env</code>, <code>ctx.now</code> e todos os métodos suspensos.</td></tr>
+          <tr><td>deltaTime</td><td>Double</td><td>Tamanho do passo — sempre igual ao <code>stepSize</code> configurado em <code>env.continuous()</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplo: movimento linear</h2>
+<pre><code class="language-kotlin">val env = Environment()
+var posicao = 0.0
+val velocidade = 2.0  // unidades por tempo
+
+env.continuous(
+    stepSize = 1.0,
+    until    = SimTime(5.0),
+    SimContinuousModel { ctx, dt ->
+        posicao += velocidade * dt
+        ctx.env.monitor.record(ctx.now, "posição: $posicao")
+    }
+)
+
+env.run(until = SimTime(10.0))
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">[SimTime(value=1.0)]: posição: 2.0
+[SimTime(value=2.0)]: posição: 4.0
+[SimTime(value=3.0)]: posição: 6.0
+[SimTime(value=4.0)]: posição: 8.0
+[SimTime(value=5.0)]: posição: 10.0</div>
+
+      <h2>Exemplo: dreno de bateria com modo econômico</h2>
+<pre><code class="language-kotlin">val env = Environment()
+val bateria = env.container("bateria", capacity = 100.0, initialLevel = 100.0)
+var modoEconomico = false
+
+// Modelo contínuo: drena a bateria a cada passo
+val drainModel = SimContinuousModel { ctx, dt ->
+    val taxa = if (modoEconomico) 1.0 else 3.0
+    val drain = minOf(taxa * dt, bateria.level)
+    if (drain > 0.0) bateria.get(drain)
+
+    if (bateria.level <= 0.0) ctx.env.stop()
+}
+
+// Processo discreto: ativa modo econômico quando bateria < 30%
+val sensorProcess = SimProcess { ctx ->
+    while (bateria.level > 0.0) {
+        ctx.hold(5.0)
+        val pct = bateria.level
+        ctx.env.monitor.record(ctx.now, "bateria: ${"%.1f".format(pct)}%")
+
+        if (!modoEconomico && pct < 30.0) {
+            modoEconomico = true
+            ctx.env.monitor.record(ctx.now, "MODO ECONÔMICO ATIVADO")
+        }
+    }
+}
+
+env.continuous(stepSize = 1.0, models = arrayOf(drainModel))
+env.process(sensorProcess)
+env.run(until = SimTime(100.0))
+env.monitor.printAll()</code></pre>
+
+      <h2>Múltiplos modelos</h2>
+<pre><code class="language-kotlin">val posModel = SimContinuousModel { ctx, dt ->
+    posicao += velocidade * dt
+}
+
+val rumorModel = SimContinuousModel { ctx, dt ->
+    // adiciona ruído gaussiano simples
+    ruido = ctx.env.random.nextDouble(-0.5, 0.5) * dt
+}
+
+// Ambos são chamados a cada passo na ordem em que foram passados
+env.continuous(stepSize = 0.1, SimContinuousModel { ctx, dt ->
+    // ...
+}, SimContinuousModel { ctx, dt ->
+    // ...
+})</code></pre>
+
+      <div class="callout warning">
+        <strong>Não use <code>ctx.hold()</code> dentro de <code>step()</code>.</strong>
+        O hold já é feito automaticamente pelo <code>SimContinuousRunner</code> entre cada passo.
+        Chamar hold dentro do step causa comportamento inesperado.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-continuous.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

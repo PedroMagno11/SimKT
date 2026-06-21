@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SimKT é uma biblioteca Kotlin para simulação de eventos discretos. Modele processos, recursos, canais e dinâmicas contínuas com uma API simples baseada em coroutines.">
+  <title>SimKT — Discrete Event Simulation for Kotlin</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <span class="badge">Discrete Event Simulation Toolkit for Kotlin</span>
+          <h1>Simulações discretas em Kotlin.</h1>
+          <p>SimKT é uma biblioteca experimental para modelar sistemas baseados em eventos, processos concorrentes, recursos compartilhados e dinâmicas contínuas — sem threads reais, sem tempo de espera.</p>
+          <div class="buttons">
+            <a href="pages/installation.html" class="button primary">Começar</a>
+            <a href="pages/examples.html" class="button secondary">Ver exemplos</a>
+          </div>
+        </div>
+        <div class="logo-card">
+          <img src="assets/logo.png" alt="Logo SimKT">
+        </div>
+      </div>
+    </section>
+
+    <!-- Code preview -->
+    <section style="padding-top: 0;">
+      <div class="container">
+        <h2 class="section-title">Veja como funciona</h2>
+        <p class="section-subtitle">Um processo suspende com <code>hold()</code>, avança o tempo virtual e retoma — sem bloquear a thread.</p>
+        <div class="quickstart">
+          <div class="quickstart-grid">
+            <div>
+              <pre><code class="language-kotlin">val env = Environment()
+
+// Processo com coroutine — hold() avança o tempo virtual
+env.process(SimProcess { ctx ->
+    repeat(3) { i ->
+        ctx.hold(10.0)
+        ctx.env.monitor.record(
+            ctx.now,
+            "Leitura ${i + 1}: alvo detectado"
+        )
+    }
+})
+
+env.run(until = SimTime(40.0))
+env.monitor.printAll()</code></pre>
+            </div>
+            <div>
+              <p class="output-label">Saída</p>
+              <div class="output-block">[SimTime(value=10.0)]: Leitura 1: alvo detectado
+[SimTime(value=20.0)]: Leitura 2: alvo detectado
+[SimTime(value=30.0)]: Leitura 3: alvo detectado</div>
+              <div class="callout info" style="margin-top: 18px;">
+                O tempo virtual avança instantaneamente. Nenhum <code>sleep()</code> real acontece.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section>
+      <div class="container">
+        <h2 class="section-title">O que o SimKT oferece?</h2>
+        <p class="section-subtitle">Um núcleo pequeno e extensível para estudar e prototipar simulações de eventos discretos com Kotlin.</p>
+        <div class="features">
+          <div class="card">
+            <div class="card-icon">⏱️</div>
+            <h3>Tempo virtual</h3>
+            <p><code>SimTime</code> controla o relógio da simulação. Nenhuma espera real — o motor avança evento a evento.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🔄</div>
+            <h3>Processos</h3>
+            <p><code>SimProcess</code> usa coroutines Kotlin para modelar comportamentos sequenciais com <code>hold()</code>, <code>await()</code> e suspensão.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">📦</div>
+            <h3>Primitivos</h3>
+            <p><code>SimResource</code>, <code>SimChannel</code>, <code>SimQueue</code> e <code>SimContainer</code> para modelar recursos, filas e estoques.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">📈</div>
+            <h3>Contínuo + Discreto</h3>
+            <p><code>SimContinuousModel</code> integra dinâmicas de passo fixo (bateria, movimento, sensores) dentro do loop discreto.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick install -->
+    <section style="padding-top: 0; padding-bottom: 80px;">
+      <div class="container">
+        <h2 class="section-title">Instalação rápida</h2>
+        <p class="section-subtitle">Clone o repositório e construa com Maven. A biblioteca fica disponível como JAR local.</p>
+        <div class="quickstart">
+          <ol class="steps">
+            <li>
+              <strong>Clone o repositório</strong>
+              <code>git clone https://github.com/PedroMagno11/SimKT</code>
+            </li>
+            <li>
+              <strong>Compile com Maven</strong>
+              <code>cd SimKT &amp;&amp; mvn clean package</code>
+            </li>
+            <li>
+              <strong>Adicione ao seu projeto</strong>
+              O JAR fica em <code>target/simkt-0.1.0.jar</code>. Veja <a href="pages/installation.html">Instalação</a> para opções de dependência.
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+  <script src="js/layout.js"></script>
+  <script>renderLayout('index.html');</script>
+  <script src="js/main.js"></script>
+</body>
+</html>

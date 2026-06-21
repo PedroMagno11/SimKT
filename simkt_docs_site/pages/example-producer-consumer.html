@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo SimKT: dois produtores e três consumidores compartilham uma SimQueue limitada. Backpressure automático.">
+  <title>Produtor-Consumidor | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Produtor-Consumidor</h1>
+      <p class="page-intro">
+        Dois produtores geram pacotes em taxas diferentes e os inserem em uma fila com capacidade 5.
+        Três consumidores retiram e processam cada pacote. Quando a fila está cheia, os produtores
+        bloqueiam automaticamente.
+      </p>
+
+      <p><strong>Demonstra:</strong> <code>SimQueue&lt;T&gt;</code> com capacidade limitada, múltiplos produtores e consumidores, backpressure via suspensão.</p>
+
+      <h2>Código</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.process.SimProcess
+
+data class DataPacket(val producerId: Int, val packetId: Int, val size: Int)
+
+fun main() {
+    val env = Environment()
+    val buffer = env.store&lt;DataPacket&gt;("buffer", capacity = 5)
+
+    fun producer(id: Int, interval: Double, packetSize: Int) = SimProcess { ctx ->
+        var packetId = 0
+        while (true) {
+            ctx.hold(interval)
+            val packet = DataPacket(id, ++packetId, packetSize)
+            ctx.env.monitor.record(ctx.now,
+                "Producer $id enviou #${packet.packetId} (fila: ${buffer.size()}/${buffer.capacity})")
+            ctx.put(buffer, packet)  // suspende se fila cheia
+        }
+    }
+
+    fun consumer(id: Int, processingTime: Double) = SimProcess { ctx ->
+        while (true) {
+            val packet = ctx.get(buffer)  // suspende se fila vazia
+            ctx.env.monitor.record(ctx.now,
+                "Consumer $id processa #${packet.packetId} do producer ${packet.producerId}")
+            ctx.hold(processingTime)
+            ctx.env.monitor.record(ctx.now, "Consumer $id: concluído #${packet.packetId}")
+        }
+    }
+
+    env.process(producer(id = 1, interval = 2.0, packetSize = 100))
+    env.process(producer(id = 2, interval = 3.0, packetSize = 200))
+
+    env.process(consumer(id = 1, processingTime = 4.0))
+    env.process(consumer(id = 2, processingTime = 6.0))
+    env.process(consumer(id = 3, processingTime = 5.0))
+
+    env.run(until = SimTime(30.0))
+
+    println("=== Produtor-Consumidor ===")
+    env.monitor.printAll()
+    println("Pacotes na fila ao final: ${buffer.size()}")
+    println("Consumers esperando: ${buffer.waitingGets()}")
+}</code></pre>
+
+      <h2>O que observar</h2>
+      <ul>
+        <li>Producer 1 é mais rápido (intervalo 2) que Producer 2 (intervalo 3).</li>
+        <li>Consumer 2 é mais lento (6) — vai acumular fila às vezes.</li>
+        <li>Se a fila atingir capacidade 5, o próximo <code>ctx.put()</code> suspende o producer.</li>
+        <li>Consumers suspensos em <code>ctx.get()</code> são acordados conforme pacotes chegam.</li>
+      </ul>
+
+      <div class="callout info">
+        Altere <code>capacity</code> de 5 para 1 e observe como os produtores ficam bloqueados
+        com muito mais frequência. Isso simula backpressure em redes com buffer limitado.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('example-producer-consumer.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

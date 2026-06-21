@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência da classe SimEvent do SimKT: ciclo de vida PENDING/TRIGGERED/CANCELLED, trigger, cancel, await, withValue.">
+  <title>SimEvent | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimEvent</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimEvent&lt;T&gt;(time: SimTime, value: T? = null, action: (() -> Unit)? = null)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimEvent&lt;T&gt;</code> é a unidade fundamental da simulação. Representa um acontecimento
+        agendado para um tempo virtual específico. Pode carregar um valor tipado (<code>T</code>)
+        e pode ser aguardado por processos via <code>await()</code>.
+      </p>
+
+      <div class="callout info">
+        Em uso normal você raramente cria <code>SimEvent</code> diretamente. Use
+        <code>env.timeout()</code>, <code>env.eventAt()</code> ou os primitivos
+        (<code>SimResource</code>, <code>SimChannel</code>, etc.) que criam eventos internamente.
+      </div>
+
+      <h2>Ciclo de vida</h2>
+      <p>Todo evento começa em <code>PENDING</code> e termina em <code>TRIGGERED</code> ou <code>CANCELLED</code>. Não há retorno.</p>
+<pre><code class="language-kotlin">// PENDING  →  TRIGGERED
+event.trigger()
+event.triggerWith(value)
+
+// PENDING  →  CANCELLED
+event.cancel()
+
+// Leitura de estado
+event.isPending    // true se ainda não disparou
+event.isTriggered  // true após trigger()
+event.isCancelled  // true após cancel()</code></pre>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>time</td><td>SimTime</td><td>Tempo virtual em que o evento ocorre.</td></tr>
+          <tr><td>status</td><td>SimEventStatus</td><td>Estado atual: <code>PENDING</code>, <code>TRIGGERED</code> ou <code>CANCELLED</code>.</td></tr>
+          <tr><td>isPending</td><td>Boolean</td><td>Verdadeiro enquanto o evento não foi disparado nem cancelado.</td></tr>
+          <tr><td>isTriggered</td><td>Boolean</td><td>Verdadeiro após <code>trigger()</code> ou <code>triggerWith()</code>.</td></tr>
+          <tr><td>isCancelled</td><td>Boolean</td><td>Verdadeiro após <code>cancel()</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>valueOrNull(): T?</td><td>Retorna o valor carregado pelo evento, ou <code>null</code>.</td></tr>
+          <tr><td>withValue(newValue: T): SimEvent&lt;T&gt;</td><td>Define ou substitui o valor. Só pode ser chamado enquanto <code>isPending</code>.</td></tr>
+          <tr><td>await(continuation)</td><td>Registra uma coroutine para ser retomada quando o evento disparar. Usado internamente por <code>SimProcessContext</code>.</td></tr>
+          <tr><td>trigger()</td><td>Dispara o evento: muda o status, invoca <code>action</code> e retoma todas as coroutines aguardando.</td></tr>
+          <tr><td>triggerWith(newValue: T)</td><td>Define o valor e dispara. Equivale a <code>withValue(v).trigger()</code>.</td></tr>
+          <tr><td>cancel()</td><td>Cancela o evento. Retoma todas as coroutines aguardando com <code>null</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplos</h2>
+
+      <h3>Evento de timeout básico</h3>
+<pre><code class="language-kotlin">val env = Environment()
+
+// env.timeout() cria um SimEvent internamente
+val evento = env.timeout(5.0) {
+    println("ação embutida no evento")
+}
+
+println(evento.isPending)   // true — ainda não foi disparado
+
+env.run(until = SimTime(10.0))
+
+println(evento.isTriggered) // true — disparado em t=5</code></pre>
+
+      <h3>Evento com valor tipado</h3>
+<pre><code class="language-kotlin">val env = Environment()
+
+// Cria um evento que carrega um resultado de detecção
+val deteccao = env.eventAt(
+    time  = SimTime(10.0),
+    value = "drone-01"
+)
+
+env.process(SimProcess { ctx ->
+    val alvo = ctx.await(deteccao)
+    ctx.env.monitor.record(ctx.now, "Detectado: $alvo")
+})
+
+env.run(until = SimTime(20.0))
+env.monitor.printAll()
+// [SimTime(value=10.0)]: Detectado: drone-01</code></pre>
+
+      <h3>Cancelamento de evento</h3>
+<pre><code class="language-kotlin">val env = Environment()
+val alarme = env.timeout(10.0)
+
+// Cancela antes de disparar
+env.process(SimProcess { ctx ->
+    ctx.hold(3.0)
+    alarme.cancel()
+    ctx.env.monitor.record(ctx.now, "Alarme cancelado")
+})
+
+env.run(until = SimTime(20.0))
+// O alarme nunca dispara em t=10</code></pre>
+
+      <div class="callout warning">
+        Um evento cancelado permanece na fila do scheduler, mas é ignorado quando o scheduler o retira — a verificação <code>isCancelled</code> descarta o evento sem executar nada.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-event.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo SimKT: canal de comunicação entre dois processos com SimChannel. Um processo envia, outro recebe.">
+  <title>Canal de Comunicação | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Canal de Comunicação</h1>
+      <p class="page-intro">
+        Um processo envia uma mensagem via <code>SimChannel</code> com um delay e outro
+        a recebe assim que disponível. Modela a transmissão de dados por rádio, GPS ou MQTT.
+      </p>
+
+      <p><strong>Demonstra:</strong> <code>SimChannel&lt;T&gt;</code>, <code>ctx.send()</code>, <code>ctx.receive()</code>.</p>
+
+      <h2>Código</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.process.SimProcess
+
+data class Message(val id: Int, val payload: String)
+
+fun main() {
+    val env = Environment()
+    val channel = env.channel&lt;Message&gt;(name = "radio", capacity = 2)
+
+    // Produtor: espera 1 unidade e envia
+    env.process(SimProcess { ctx ->
+        ctx.hold(1.0)
+        ctx.send(channel, Message(1, "posição GPS"))
+        ctx.env.monitor.record(ctx.now, "Produtor enviou mensagem")
+    })
+
+    // Consumidor: aguarda até ter mensagem
+    env.process(SimProcess { ctx ->
+        val message = ctx.receive(channel)
+        ctx.env.monitor.record(ctx.now, "Consumidor recebeu: $message")
+    })
+
+    env.run()
+    env.monitor.printAll()
+}</code></pre>
+
+      <p class="output-label">Saída</p>
+      <div class="output-block">[SimTime(value=1.0)]: Consumidor recebeu: Message(id=1, payload=posição GPS)
+[SimTime(value=1.0)]: Produtor enviou mensagem</div>
+
+      <h2>O que está acontecendo</h2>
+      <ul>
+        <li>O consumidor começa imediatamente e chama <code>ctx.receive(channel)</code>. O canal está vazio — ele suspende.</li>
+        <li>O produtor espera 1 unidade e envia a mensagem. Isso acorda o consumidor em t=1.</li>
+        <li>O consumidor retoma, registra a mensagem recebida.</li>
+        <li>O produtor registra "enviou" — na mesma unidade de tempo.</li>
+      </ul>
+
+      <div class="callout info">
+        A ordem das entradas no monitor (<em>consumidor antes do produtor</em>) ocorre porque
+        <code>ctx.send()</code> acorda o consumidor suspenso <em>inline</em>, antes de retornar
+        ao produtor.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('example-channel.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

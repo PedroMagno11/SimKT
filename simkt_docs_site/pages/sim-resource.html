@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência do SimResource no SimKT: recurso compartilhado com capacidade e fila FIFO de espera. request, release, available, used, waiting.">
+  <title>SimResource | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimResource</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>SimResource(env, name: String, capacity: Int)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimResource</code> modela um recurso compartilhado com capacidade limitada.
+        Quando a capacidade está esgotada, processos que tentam adquiri-lo ficam suspensos
+        em uma fila FIFO e são retomados automaticamente quando uma vaga é liberada.
+        Exemplos: bombas de combustível, antenas, servidores, pistas de pouso.
+      </p>
+
+      <div class="callout info">
+        Crie sempre via <code>env.resource(name, capacity)</code> — nunca instancie diretamente.
+      </div>
+
+      <h2>Criação</h2>
+<pre><code class="language-kotlin">// Capacidade 1: exclusão mútua (mutex)
+val antena = env.resource("antena", capacity = 1)
+
+// Capacidade N: pool de recursos
+val bombas = env.resource("bombas", capacity = 3)</code></pre>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>name</td><td>String</td><td>Identificador do recurso.</td></tr>
+          <tr><td>capacity</td><td>Int</td><td>Número máximo de usuários simultâneos.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Métodos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>request(): SimEvent&lt;SimResourceRequest&gt;</td><td>SimEvent</td><td>Cria e agenda a requisição. Use <code>ctx.request(resource)</code> para suspender até a vaga ser concedida.</td></tr>
+          <tr><td>release(request: SimResourceRequest)</td><td>Unit</td><td>Libera a vaga e acorda o próximo processo na fila. Deve ser chamado com o token retornado por <code>request()</code>.</td></tr>
+          <tr><td>available()</td><td>Int</td><td>Vagas disponíveis no momento.</td></tr>
+          <tr><td>used()</td><td>Int</td><td>Vagas em uso no momento.</td></tr>
+          <tr><td>waiting()</td><td>Int</td><td>Processos suspensos aguardando uma vaga.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Padrão request / release</h2>
+      <p>
+        Sempre use o <strong>token</strong> retornado por <code>ctx.request()</code> para liberar o recurso.
+        Isso garante que apenas quem adquiriu a vaga possa liberá-la.
+      </p>
+<pre><code class="language-kotlin">val servidor = env.resource("servidor-http", capacity = 2)
+
+env.process(SimProcess { ctx ->
+    // Adquire (suspende se ambos os slots estiverem ocupados)
+    val token = ctx.request(servidor)
+
+    ctx.env.monitor.record(ctx.now, "processando request")
+    ctx.hold(3.0)  // tempo de processamento
+
+    // Libera a vaga (acorda o próximo na fila)
+    ctx.release(servidor, token)
+    ctx.env.monitor.record(ctx.now, "request concluída")
+})</code></pre>
+
+      <h2>Exemplo: 3 processos em um recurso de capacidade 1</h2>
+<pre><code class="language-kotlin">val env = Environment()
+val antena = env.resource("antena", capacity = 1)
+
+repeat(3) { i ->
+    env.process(SimProcess { ctx ->
+        ctx.env.monitor.record(ctx.now, "Msg $i: aguardando")
+        val token = ctx.request(antena)
+        ctx.env.monitor.record(ctx.now, "Msg $i: transmitindo")
+        ctx.hold(2.0)
+        ctx.release(antena, token)
+        ctx.env.monitor.record(ctx.now, "Msg $i: concluída")
+    })
+}
+
+env.run()
+env.monitor.printAll()</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">[SimTime(value=0.0)]: Msg 0: aguardando
+[SimTime(value=0.0)]: Msg 1: aguardando
+[SimTime(value=0.0)]: Msg 2: aguardando
+[SimTime(value=0.0)]: Msg 0: transmitindo
+[SimTime(value=2.0)]: Msg 1: transmitindo
+[SimTime(value=2.0)]: Msg 0: concluída
+[SimTime(value=4.0)]: Msg 2: transmitindo
+[SimTime(value=4.0)]: Msg 1: concluída
+[SimTime(value=6.0)]: Msg 2: concluída</div>
+
+      <h2>Monitorar estado</h2>
+<pre><code class="language-kotlin">println(antena)
+// SimResource(name=antena, capacity=1, inUse=1, waiting=2)
+
+println("disponíveis: ${antena.available()}")
+println("em uso: ${antena.used()}")
+println("na fila: ${antena.waiting()}")</code></pre>
+
+      <div class="callout warning">
+        <strong>Não esqueça de liberar.</strong> Se um processo terminar sem chamar <code>release()</code>,
+        a vaga nunca será devolvida e os processos em espera ficarão presos para sempre.
+        Use <code>try/finally</code> em cenários onde exceções são possíveis.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-resource.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

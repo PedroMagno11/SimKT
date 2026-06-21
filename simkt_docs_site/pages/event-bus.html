@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="O EventBus foi substituído por SimTopic no SimKT v0.1.0. Veja a documentação atualizada.">
+  <title>EventBus → SimTopic | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>EventBus → SimTopic</h1>
+
+      <div class="callout warning">
+        <strong>API removida.</strong> O <code>EventBus</code> com <code>publish()</code> / <code>subscribe()</code>
+        não existe mais no SimKT v0.1.0. Foi substituído por <a href="sim-topic.html">SimTopic</a>
+        com uma API mais simples e por <a href="sim-channel.html">SimChannel</a> para comunicação
+        integrada ao loop de eventos.
+      </div>
+
+      <h2>O que mudou</h2>
+      <table class="api-table">
+        <thead><tr><th>Antes (removido)</th><th>Agora (v0.1.0)</th></tr></thead>
+        <tbody>
+          <tr><td>EventBus.publish("topico", evento)</td><td>SimTopic.emit("topico", payload)</td></tr>
+          <tr><td>EventBus.subscribe("topico") { }</td><td>SimTopic.on("topico") { }</td></tr>
+          <tr><td>Integrado ao Environment</td><td>SimTopic é instanciado separadamente</td></tr>
+          <tr><td>Sem integração com o relógio</td><td>SimChannel: send/receive integrados ao scheduler</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Qual usar?</h2>
+      <div class="grid-two">
+        <a class="card" href="sim-topic.html">
+          <h3>SimTopic</h3>
+          <p>Pub/sub síncrono por nome de evento. Sem integração com tempo. Use quando só precisa notificar ouvintes sem avançar o relógio.</p>
+        </a>
+        <a class="card" href="sim-channel.html">
+          <h3>SimChannel</h3>
+          <p>FIFO tipado integrado ao scheduler. Producers e consumers suspendem e retomam dentro do loop de eventos. Use para troca de dados entre processos.</p>
+        </a>
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('event-bus.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

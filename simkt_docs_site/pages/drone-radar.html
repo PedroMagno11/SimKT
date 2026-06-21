@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo SimKT: radar detecta drone e publica evento via SimTopic. Central de vigilância recebe notificação.">
+  <title>Drone e Radar | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Drone e Radar</h1>
+      <p class="page-intro">
+        Um radar detecta um drone em movimento e publica o evento via <code>SimTopic</code>.
+        Uma central de vigilância ouve o tópico e reage em tempo virtual.
+        Demonstra: <code>SimTopic</code>, <code>SimEntity</code>, <code>SimProcess</code>, <code>Simulation</code>.
+      </p>
+
+      <div class="callout info">
+        Este exemplo usa <a href="sim-topic.html">SimTopic</a> — o pub/sub síncrono do SimKT.
+        Para comunicação com integração ao tempo virtual, veja <a href="example-channel.html">Canal de Comunicação</a>.
+      </div>
+
+      <h2>Fluxo da simulação</h2>
+      <ol>
+        <li>O ambiente é criado com um <code>SimTopic</code> de detecção.</li>
+        <li>A Central de Vigilância registra um ouvinte no tópico.</li>
+        <li>O Radar agenda uma detecção em t=5.</li>
+        <li>Em t=5, o Radar publica no tópico — a Central é notificada imediatamente.</li>
+        <li>Em t=8, o Radar publica um rastreamento confirmado.</li>
+      </ol>
+
+      <h2>Código completo</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.communication.topic.SimTopic
+import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimEntity
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.core.Simulation
+import br.com.pedromagno.process.SimProcess
+
+// Tópico de comunicação (criado fora das entidades)
+val topico = SimTopic&lt;String&gt;()
+
+class CentralVigilancia(name: String) : SimEntity(name = name) {
+    override fun onCreate(env: Environment) {
+        super.onCreate(env)
+
+        // Registra ouvintes no tópico ANTES da simulação começar
+        topico.on("detection") { payload ->
+            env.monitor.record(env.now, "$name: ALERTA — detectou $payload")
+        }
+
+        topico.on("tracking") { payload ->
+            env.monitor.record(env.now, "$name: rastreando $payload")
+        }
+    }
+}
+
+class Radar(name: String) : SimEntity(name = name) {
+    override fun onCreate(env: Environment) {
+        super.onCreate(env)
+
+        env.process(SimProcess { ctx ->
+            ctx.hold(5.0)
+            topico.emit("detection", "drone-01")
+
+            ctx.hold(3.0)
+            topico.emit("tracking", "drone-01 em setor-norte")
+        })
+    }
+}
+
+fun main() {
+    val sim = Simulation("Cenário de Vigilância")
+
+    // A ordem importa: Central deve registrar os ouvintes antes do Radar emitir
+    sim.addEntity(CentralVigilancia("Central-01"))
+    sim.addEntity(Radar("Radar-Alfa"))
+
+    sim.run(until = 20.0)
+    sim.printReport()
+}</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">Simulation: Cenário de Vigilância
+Time: SimTime(value=8.0)
+Entities: 2
+[SimTime(value=5.0)]: Central-01: ALERTA — detectou drone-01
+[SimTime(value=8.0)]: Central-01: rastreando drone-01 em setor-norte</div>
+
+      <h2>Extensões possíveis</h2>
+      <ul>
+        <li>Adicionar múltiplos radares com diferentes delays de detecção.</li>
+        <li>Usar <code>SimChannel</code> se a central precisar processar detecções com atraso.</li>
+        <li>Adicionar <code>CoordXY</code> para rastrear a posição real do drone.</li>
+        <li>Adicionar <code>SimResource</code> para limitar a capacidade de rastreamento simultâneo.</li>
+      </ul>
+
+      <div class="callout">
+        Este padrão — tópico compartilhado, entidades assinando antes de emitir — é útil para
+        radares, sonares, sensores IoT, telemetria e sistemas de comando e controle.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('drone-radar.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

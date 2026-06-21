@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência completa da classe Environment do SimKT: timeout, process, resource, channel, store, container, continuous, run, stop, reset.">
+  <title>Environment | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Environment</h1>
+      <div class="sig-block">
+        <span class="tag tag-class">class</span>
+        <code>Environment(clock, scheduler, monitor, random)</code>
+      </div>
+      <p class="page-intro">
+        <code>Environment</code> é a fachada central da simulação. Ele mantém o relógio virtual,
+        a fila de eventos e expõe os métodos para criar processos, primitivos e executar o loop.
+        Todos os outros componentes recebem uma referência a ele.
+      </p>
+
+      <h2>Construtor</h2>
+      <p>Todos os parâmetros têm valores padrão — na maioria dos casos basta <code>Environment()</code>.</p>
+      <table class="api-table">
+        <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Padrão</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>clock</td><td>SimClock</td><td>SimClock()</td><td>Relógio interno. Raramente precisará ser substituído.</td></tr>
+          <tr><td>scheduler</td><td>SimScheduler</td><td>PriorityQueueScheduler()</td><td>Implementação da fila de eventos.</td></tr>
+          <tr><td>monitor</td><td>SimMonitor</td><td>SimMonitor()</td><td>Log de eventos. Acessível via <code>env.monitor</code>.</td></tr>
+          <tr><td>random</td><td>SimRandomProvider</td><td>SimRandomProvider()</td><td>RNG. Acessível via <code>env.random</code>. Use <code>SimConfig</code> para seed.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>now</td><td>SimTime</td><td>Tempo atual da simulação. Avança apenas quando o scheduler processa eventos.</td></tr>
+          <tr><td>monitor</td><td>SimMonitor</td><td>Log de texto. Use <code>env.monitor.record(now, msg)</code> e <code>env.monitor.printAll()</code>.</td></tr>
+          <tr><td>random</td><td>SimRandomProvider</td><td>RNG com seed opcional. Use para resultados reproduzíveis.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Agendamento de eventos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>timeout(delay: Double, action: () -> Unit = {})</td><td>SimEvent&lt;Unit&gt;</td><td>Agenda um evento para <code>now + delay</code>. <code>delay</code> deve ser ≥ 0.</td></tr>
+          <tr><td>timeout(delay: Long, action: () -> Unit = {})</td><td>SimEvent&lt;Unit&gt;</td><td>Variante com <code>Long</code> (convertida para Double internamente).</td></tr>
+          <tr><td>eventAt(time, value?, action?)</td><td>SimEvent&lt;T&gt;</td><td>Agenda um evento para um tempo absoluto específico.</td></tr>
+          <tr><td>eventNow(value?, action?)</td><td>SimEvent&lt;T&gt;</td><td>Agenda um evento no tempo atual (<code>now</code>).</td></tr>
+          <tr><td>schedule(event: SimEvent&lt;*&gt;)</td><td>Unit</td><td>Adiciona um evento já criado à fila. Lança erro se <code>event.time &lt; now</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Processos</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>process(process: SimProcess)</td><td>Registra e inicia uma coroutine. O processo começa imediatamente até o primeiro <code>hold()</code> ou <code>await()</code>.</td></tr>
+        </tbody>
+      </table>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    ctx.hold(5.0)
+    ctx.env.monitor.record(ctx.now, "acordou")
+})</code></pre>
+
+      <h2>Criação de primitivos</h2>
+      <p>Todos os primitivos são criados pelo <code>Environment</code> para que recebam a referência ao relógio e ao scheduler.</p>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Retorno</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>resource(name: String, capacity: Int)</td><td>SimResource</td><td>Recurso compartilhado com fila de espera FIFO.</td></tr>
+          <tr><td>channel&lt;T&gt;(name: String, capacity: Int = MAX)</td><td>SimChannel&lt;T&gt;</td><td>Canal FIFO tipado com backpressure.</td></tr>
+          <tr><td>store&lt;T&gt;(name: String, capacity: Int = MAX)</td><td>SimQueue&lt;T&gt;</td><td>Fila de objetos com producers e consumers suspensos.</td></tr>
+          <tr><td>container(name: String, capacity: Double, initialLevel: Double = 0.0)</td><td>SimContainer</td><td>Recipiente numérico contínuo (combustível, bateria, água).</td></tr>
+          <tr><td>continuous(stepSize: Double, until: SimTime? = null, vararg models)</td><td>Unit</td><td>Registra modelos contínuos executados a cada <code>stepSize</code> unidades de tempo.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Execução</h2>
+      <table class="api-table">
+        <thead><tr><th>Método</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>run(until: SimTime? = null, maxEvents: Long? = null)</td><td>Executa o loop até o limite de tempo, de eventos, ou até a fila se esgotar.</td></tr>
+          <tr><td>run(config: SimConfig)</td><td>Executa com configuração declarativa. Aplica seed aleatório se <code>config.randomSeed</code> for fornecido.</td></tr>
+          <tr><td>run()</td><td>Atalho: roda até a fila se esgotar (sem limite de tempo).</td></tr>
+          <tr><td>stop()</td><td>Interrompe o loop da próxima iteração. Pode ser chamado de dentro de um processo.</td></tr>
+          <tr><td>reset()</td><td>Limpa relógio, fila, monitor e contador de processos. Útil para rodar múltiplos cenários.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplos</h2>
+
+      <h3>Simulação básica com processo</h3>
+<pre><code class="language-kotlin">val env = Environment()
+
+env.process(SimProcess { ctx ->
+    ctx.hold(10.0)
+    ctx.env.monitor.record(ctx.now, "evento executado")
+})
+
+env.run(until = SimTime(20.0))
+env.monitor.printAll()
+// [SimTime(value=10.0)]: evento executado</code></pre>
+
+      <h3>Parar a simulação de dentro de um processo</h3>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    repeat(10) {
+        ctx.hold(1.0)
+        if (ctx.now.value >= 3.0) ctx.env.stop()
+    }
+})
+env.run()
+// Para em t=3.0</code></pre>
+
+      <h3>Configuração com seed para reprodutibilidade</h3>
+<pre><code class="language-kotlin">val env = Environment()
+
+env.process(SimProcess { ctx ->
+    val intervalo = ctx.env.random.nextDouble(1.0, 10.0)
+    ctx.hold(intervalo)
+})
+
+env.run(SimConfig(until = SimTime(100.0), randomSeed = 42L))</code></pre>
+
+      <div class="callout">
+        O <code>Environment</code> não é thread-safe por design. Toda a simulação roda em uma única thread — isso é intencional e garante determinismo.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('environment.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Perguntas frequentes sobre o SimKT: versão Kotlin, thread-safety, unidades de tempo, diferença de SimChannel e SimTopic, reprodutibilidade e mais.">
+  <title>FAQ | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>FAQ</h1>
+      <p class="page-intro">Perguntas frequentes sobre o SimKT.</p>
+
+      <h2>Qual versão do Kotlin é necessária?</h2>
+      <p>Kotlin <strong>2.3.20 ou superior</strong>, compilando para JVM <strong>1.8</strong> (Java 8) ou mais recente. Verifique o <code>pom.xml</code> do projeto para os valores exatos.</p>
+
+      <h2>O SimKT usa kotlinx.coroutines?</h2>
+      <p>
+        Não. O SimKT usa a <strong>API de coroutines de baixo nível</strong> do Kotlin
+        (<code>startCoroutine</code>, <code>suspendCoroutine</code>, <code>Continuation</code>).
+        Esses tipos fazem parte da stdlib do Kotlin — sem dependências externas.
+        Você não precisa adicionar <code>kotlinx.coroutines</code> ao seu projeto.
+      </p>
+
+      <h2>O que "experimental" significa para a API?</h2>
+      <p>
+        Significa que a API pode mudar entre versões menores sem aviso prévio.
+        Campos, nomes de classes e comportamentos podem ser renomeados ou removidos.
+        Não use o SimKT em produção em sistemas críticos — ele é destinado a estudo,
+        prototipação e experimentação.
+      </p>
+
+      <h2>hold(5.0) significa 5 segundos?</h2>
+      <p>
+        Não. O SimKT usa tempo <strong>adimensional</strong>. A unidade é o que você decidir:
+        segundos, minutos, ticks, ciclos. Se você define que 1 unidade = 1 segundo, então
+        <code>hold(5.0)</code> é 5 segundos. A biblioteca não impõe interpretação.
+      </p>
+
+      <h2>O SimKT é thread-safe?</h2>
+      <p>
+        <strong>Não.</strong> O SimKT é single-threaded por design. Toda a simulação roda
+        em uma única thread. Isso é intencional — garante determinismo e elimina race conditions.
+        Não compartilhe um <code>Environment</code> entre threads.
+      </p>
+
+      <h2>Qual a diferença entre SimChannel e SimTopic?</h2>
+      <table class="api-table">
+        <thead><tr><th></th><th>SimChannel</th><th>SimTopic</th></tr></thead>
+        <tbody>
+          <tr><td>Integração com tempo</td><td>Sim — send/receive participam do scheduler</td><td>Não — entrega síncrona imediata</td></tr>
+          <tr><td>Múltiplos receivers</td><td>Não (um por vez)</td><td>Sim (N ouvintes por nome)</td></tr>
+          <tr><td>Backpressure</td><td>Sim (buffer limitado)</td><td>Não</td></tr>
+          <tr><td>Suspensão</td><td>Sim (<code>ctx.send/receive</code>)</td><td>Não (síncrono)</td></tr>
+        </tbody>
+      </table>
+      <p>Use <code>SimChannel</code> para pipelines de dados entre processos. Use <code>SimTopic</code> para notificações broadcast sem integração com o tempo.</p>
+
+      <h2>Como garantir resultados reproduzíveis?</h2>
+      <p>Use <code>SimConfig(randomSeed = N)</code>:</p>
+<pre><code class="language-kotlin">env.run(SimConfig(until = SimTime(100.0), randomSeed = 42L))</code></pre>
+      <p>Com a mesma seed e o mesmo código, toda execução produz exatamente o mesmo resultado.</p>
+
+      <h2>Como parar a simulação de dentro de um processo?</h2>
+<pre><code class="language-kotlin">env.process(SimProcess { ctx ->
+    while (true) {
+        ctx.hold(1.0)
+        if (condicaoDeParada) ctx.env.stop()  // para no próximo ciclo
+    }
+})</code></pre>
+
+      <h2>O que acontece quando env.run() termina sem atingir o limite?</h2>
+      <p>
+        Se a fila de eventos se esgotar antes de <code>until</code> ser atingido,
+        <code>env.run()</code> retorna normalmente. Isso acontece quando todos os processos
+        terminam sem agendar novos eventos. É o comportamento esperado para simulações finitas.
+      </p>
+
+      <h2>Posso rodar múltiplos cenários com o mesmo Environment?</h2>
+      <p>Sim, use <code>env.reset()</code> entre os cenários:</p>
+<pre><code class="language-kotlin">// Cenário 1
+env.process(...)
+env.run(until = SimTime(100.0))
+env.monitor.printAll()
+
+// Limpa tudo: relógio, fila, monitor, contador de processos
+env.reset()
+
+// Cenário 2
+env.process(...)
+env.run(until = SimTime(100.0))
+env.monitor.printAll()</code></pre>
+
+      <h2>Qual é a licença do SimKT?</h2>
+      <p>
+        O SimKT ainda não possui uma licença definida no repositório. Contribuições são
+        bem-vindas — veja <a href="contributing.html">Contribuindo</a> para mais informações.
+        Contate o autor para uso em projetos derivados.
+      </p>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('faq.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Arquitetura do SimKT: três camadas — scheduler kernel, processos com coroutines e primitivos de simulação — coordenadas pelo Environment.">
+  <title>Arquitetura | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Arquitetura</h1>
+      <p class="page-intro">
+        O SimKT é organizado em três camadas independentes coordenadas pelo <code>Environment</code>.
+        Entender essa estrutura facilita estender a biblioteca e depurar simulações complexas.
+      </p>
+
+      <h2>Visão geral em três camadas</h2>
+
+      <div class="grid-three" style="margin-bottom: 28px;">
+        <div class="card">
+          <div class="card-icon">⚙️</div>
+          <h3>Camada 1 — Scheduler</h3>
+          <p><code>SimClock</code>, <code>SimScheduler</code>, <code>SimEvent</code>. Mantém a fila de prioridade e avança o relógio evento a evento.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔄</div>
+          <h3>Camada 2 — Processos</h3>
+          <p><code>SimProcess</code>, <code>SimProcessContext</code>. Usa coroutines Kotlin de baixo nível para suspender e retomar processos via <code>hold()</code> e <code>await()</code>.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📦</div>
+          <h3>Camada 3 — Primitivos</h3>
+          <p><code>SimResource</code>, <code>SimChannel</code>, <code>SimQueue</code>, <code>SimContainer</code>, <code>SimContinuousModel</code>. Cada primitivo cria e agenda eventos internamente.</p>
+        </div>
+      </div>
+
+      <h2>O papel do Environment</h2>
+      <p>
+        <code>Environment</code> é a fachada que conecta as três camadas.
+        Ele não executa lógica de negócio — apenas expõe os pontos de entrada:
+        criar primitivos, registrar processos e disparar o loop de eventos.
+      </p>
+<pre><code class="language-kotlin">// Environment coordena tudo
+val env = Environment()
+
+// Camada 3 — primitivo criado pelo Environment
+val recurso = env.resource("antena", capacity = 1)
+
+// Camada 2 — processo registrado no Environment
+env.process(SimProcess { ctx ->
+    val token = ctx.request(recurso)  // bloqueia se recurso ocupado
+    ctx.hold(2.0)
+    ctx.release(recurso, token)
+})
+
+// Camada 1 — scheduler roda o loop
+env.run(until = SimTime(10.0))</code></pre>
+
+      <h2>Como os processos funcionam</h2>
+      <p>
+        SimKT não usa <code>kotlinx.coroutines</code>. Em vez disso, usa a API de
+        coroutines de baixo nível do Kotlin: <code>startCoroutine</code> e <code>suspendCoroutine</code>.
+      </p>
+      <p>
+        Quando um processo chama <code>ctx.hold(5.0)</code>, o que acontece é:
+      </p>
+      <ol>
+        <li>Um <code>SimEvent</code> é criado com <code>time = now + 5.0</code>.</li>
+        <li>O evento é adicionado à fila do scheduler.</li>
+        <li>A coroutine é suspensa — ela salva seu estado (ponto de execução, variáveis locais) em um objeto <code>Continuation</code>.</li>
+        <li>O <code>Continuation</code> fica armazenado dentro do <code>SimEvent</code>.</li>
+        <li>O scheduler avança para o próximo evento. Quando chega ao evento agendado, chama <code>event.trigger()</code>, que chama <code>continuation.resume()</code>.</li>
+        <li>O processo retoma exatamente de onde parou.</li>
+      </ol>
+      <div class="callout info">
+        Isso significa que nenhuma thread é bloqueada. Centenas de processos podem estar "esperando" simultaneamente com zero overhead de thread.
+      </div>
+
+      <h2>Ciclo de vida de um evento</h2>
+      <p>
+        Todo <code>SimEvent</code> passa por estados bem definidos:
+      </p>
+<pre><code class="language-kotlin">// PENDING → TRIGGERED (execução normal)
+event.trigger()     // ou triggerWith(value)
+
+// PENDING → CANCELLED (cancelamento explícito)
+event.cancel()
+
+// Consulta de estado
+event.isPending
+event.isTriggered
+event.isCancelled</code></pre>
+
+      <div class="callout warning">
+        Um evento cancelado é ignorado pelo scheduler. Recursos e canais usam cancelamento internamente para limpar filas de espera.
+      </div>
+
+      <h2>Relação entre os componentes</h2>
+<pre><code>Environment
+├── SimClock        — mantém env.now (SimTime)
+├── SimScheduler    — fila de prioridade (time, sequence)
+├── SimMonitor      — log de eventos (env.monitor)
+├── SimRandomProvider — RNG com seed (env.random)
+│
+├── process()       ── registra SimProcess
+│   └── SimProcessContext — hold / await / request / release / ...
+│
+├── resource()      ── cria SimResource
+├── channel()       ── cria SimChannel
+├── store()         ── cria SimQueue
+├── container()     ── cria SimContainer
+└── continuous()    ── cria SimContinuousRunner (SimProcess interno)</code></pre>
+
+      <h2>Simulation — fachada opcional</h2>
+      <p>
+        <code>Simulation</code> é uma camada fina sobre <code>Environment</code> que
+        adiciona um nome, uma lista de <code>SimEntity</code> e o método <code>printReport()</code>.
+        Ela não altera o comportamento do motor — apenas organiza a simulação como um objeto nomeado.
+      </p>
+<pre><code class="language-kotlin">val sim = Simulation("Missão Alpha")
+// sim.env é o Environment subjacente — todas as APIs funcionam igual
+sim.addProcess(SimProcess { ctx -> ctx.hold(5.0) })
+sim.run(until = 60.0)
+sim.printReport()</code></pre>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('architecture.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

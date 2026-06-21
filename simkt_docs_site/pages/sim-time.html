@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Referência de SimTime no SimKT: value class que encapsula Double, operadores aritméticos, comparação e SimTime.ZERO.">
+  <title>SimTime | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>SimTime</h1>
+      <div class="sig-block">
+        <span class="tag tag-val">@JvmInline value class</span>
+        <code>SimTime(val value: Double)</code>
+      </div>
+      <p class="page-intro">
+        <code>SimTime</code> é o tipo que representa instantes de tempo na simulação.
+        É um <em>inline value class</em> que encapsula um <code>Double</code> — sem overhead
+        em tempo de execução. O campo <code>value</code> é a unidade de tempo (adimensional).
+      </p>
+
+      <div class="callout info">
+        <strong>Unidade adimensional.</strong> O SimKT não impõe unidade (segundos, minutos, ticks).
+        Você decide o que cada unidade representa na sua simulação. Se <code>hold(60.0)</code>
+        significa 60 segundos ou 1 minuto depende da sua convenção.
+      </div>
+
+      <h2>Construtor</h2>
+      <table class="api-table">
+        <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>value</td><td>Double</td><td>Valor numérico do tempo. Deve ser ≥ 0. Lança <code>IllegalArgumentException</code> se negativo.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Propriedades</h2>
+      <table class="api-table">
+        <thead><tr><th>Propriedade</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>value</td><td>Double</td><td>O valor numérico.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Operadores</h2>
+      <table class="api-table">
+        <thead><tr><th>Operador</th><th>Resultado</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>SimTime + SimTime</td><td>SimTime</td><td>Soma dois instantes de tempo.</td></tr>
+          <tr><td>SimTime + Double</td><td>SimTime</td><td>Adiciona um delay (Double deve ser ≥ 0).</td></tr>
+          <tr><td>compareTo(other: SimTime)</td><td>Int</td><td>Compara dois instantes. Implementa <code>Comparable&lt;SimTime&gt;</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Companion object</h2>
+      <table class="api-table">
+        <thead><tr><th>Constante</th><th>Valor</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>SimTime.ZERO</td><td>SimTime(0.0)</td><td>O instante de tempo zero. Valor inicial de <code>env.now</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplos</h2>
+<pre><code class="language-kotlin">val t1 = SimTime(10.0)
+val t2 = SimTime(5.0)
+
+// Aritmética
+val soma = t1 + t2      // SimTime(15.0)
+val deslocado = t1 + 3.0 // SimTime(13.0)
+
+// Comparação
+println(t1 > t2)        // true
+println(t1 == SimTime(10.0)) // true
+
+// Verificação de zero
+println(SimTime.ZERO.value) // 0.0
+
+// Usado com env.run()
+val env = Environment()
+env.run(until = SimTime(60.0))
+
+// Acessar o tempo atual
+println(env.now.value) // Double — seguro para usar em println</code></pre>
+
+      <div class="callout warning">
+        Não use <code>SimTime</code> como chave de mapa ou em estruturas que dependem de igualdade de referência.
+        Por ser um <em>inline value class</em>, a igualdade é baseada no <code>value: Double</code>.
+        Evite comparar dois <code>Double</code> com ponto flutuante em condições críticas — prefira
+        tolerâncias ou timestamps inteiros se precisar de exatidão.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('sim-time.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

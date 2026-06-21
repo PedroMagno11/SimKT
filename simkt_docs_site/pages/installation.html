@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Como instalar o SimKT: Maven local, GitHub Packages. Requisitos: Kotlin 2.3.20+, JVM 1.8+.">
+  <title>Instalação | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Instalação</h1>
+      <p class="page-intro">
+        O SimKT está em fase experimental e ainda não foi publicado no Maven Central.
+        As opções abaixo cobrem JAR local (recomendado para início) e GitHub Packages.
+      </p>
+
+      <h2>Requisitos</h2>
+      <table class="api-table">
+        <thead><tr><th>Requisito</th><th>Versão mínima</th></tr></thead>
+        <tbody>
+          <tr><td>Kotlin</td><td>2.3.20</td></tr>
+          <tr><td>JVM</td><td>1.8 (Java 8)</td></tr>
+          <tr><td>Maven</td><td>3.6+ (para compilar do fonte)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        O SimKT usa a API de coroutines de <strong>baixo nível</strong> do Kotlin
+        (<code>startCoroutine</code>, <code>suspendCoroutine</code>). Você <strong>não</strong>
+        precisa adicionar <code>kotlinx.coroutines</code> ao seu projeto.
+      </div>
+
+      <h2>Opção 1 — JAR local (recomendado)</h2>
+      <p>
+        Clone o repositório, compile e copie o JAR para o seu projeto.
+        É a forma mais rápida de começar.
+      </p>
+
+      <h3>Passo 1: compilar o SimKT</h3>
+<pre><code class="language-bash">git clone https://github.com/PedroMagno11/SimKT
+cd SimKT
+mvn clean package</code></pre>
+      <p>Isso gera <code>target/simkt-0.1.0.jar</code> e <code>target/simkt-0.1.0-sources.jar</code>.</p>
+
+      <h3>Passo 2: adicionar ao seu projeto Maven</h3>
+      <p>Copie o JAR para uma pasta <code>libs/</code> na raiz do seu projeto e adicione ao <code>pom.xml</code>:</p>
+<pre><code class="language-xml">&lt;dependency&gt;
+  &lt;groupId&gt;br.com.pedromagno&lt;/groupId&gt;
+  &lt;artifactId&gt;simkt&lt;/artifactId&gt;
+  &lt;version&gt;0.1.0&lt;/version&gt;
+  &lt;scope&gt;system&lt;/scope&gt;
+  &lt;systemPath&gt;${project.basedir}/libs/simkt-0.1.0.jar&lt;/systemPath&gt;
+&lt;/dependency&gt;</code></pre>
+
+      <h3>Passo 2 (alternativa): Gradle</h3>
+<pre><code class="language-kotlin">// build.gradle.kts
+dependencies {
+    implementation(files("libs/simkt-0.1.0.jar"))
+}</code></pre>
+
+      <h2>Opção 2 — GitHub Packages</h2>
+      <p>
+        Se o pacote estiver publicado no GitHub Packages, configure o repositório
+        e adicione a dependência normalmente.
+      </p>
+<pre><code class="language-xml">&lt;!-- pom.xml — repositório --&gt;
+&lt;repositories&gt;
+  &lt;repository&gt;
+    &lt;id&gt;github&lt;/id&gt;
+    &lt;url&gt;https://maven.pkg.github.com/PedroMagno11/SimKT&lt;/url&gt;
+  &lt;/repository&gt;
+&lt;/repositories&gt;
+
+&lt;!-- pom.xml — dependência --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;br.com.pedromagno&lt;/groupId&gt;
+  &lt;artifactId&gt;simkt&lt;/artifactId&gt;
+  &lt;version&gt;0.1.0&lt;/version&gt;
+&lt;/dependency&gt;</code></pre>
+
+      <div class="callout warning">
+        O acesso ao GitHub Packages exige autenticação via token (<code>~/.m2/settings.xml</code>
+        com <code>&lt;server&gt;</code> configurado). Veja a
+        <a href="https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-apache-maven-registry" target="_blank" rel="noopener">documentação do GitHub</a>.
+      </div>
+
+      <h2>Verificação</h2>
+      <p>Crie um arquivo <code>Main.kt</code> e verifique que a compilação funciona:</p>
+<pre><code class="language-kotlin">import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+import br.com.pedromagno.process.SimProcess
+
+fun main() {
+    val env = Environment()
+
+    env.process(SimProcess { ctx ->
+        ctx.hold(1.0)
+        println("SimKT funcionando! t = ${ctx.now.value}")
+    })
+
+    env.run(until = SimTime(5.0))
+}</code></pre>
+
+      <p class="output-label">Saída esperada</p>
+      <div class="output-block">SimKT funcionando! t = 1.0</div>
+
+      <h2>Próximos passos</h2>
+      <div class="grid-two">
+        <a class="card" href="getting-started.html">
+          <h3>Primeiros Passos</h3>
+          <p>Crie seu primeiro processo, múltiplos atores e execute uma simulação.</p>
+        </a>
+        <a class="card" href="environment.html">
+          <h3>Environment</h3>
+          <p>Referência completa da API principal.</p>
+        </a>
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('installation.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

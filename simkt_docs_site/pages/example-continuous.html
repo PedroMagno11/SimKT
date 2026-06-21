@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exemplo SimKT: modelo contínuo de movimento com posição atualizada a cada passo fixo via SimContinuousModel.">
+  <title>Movimento Contínuo | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+
+      <h1>Movimento Contínuo</h1>
+      <p class="page-intro">
+        Um objeto se desloca a velocidade constante. A posição é atualizada a cada
+        passo de 1 unidade de tempo pelo <code>SimContinuousModel</code>, integrado
+        naturalmente ao loop de eventos discretos.
+      </p>
+
+      <p><strong>Demonstra:</strong> <code>SimContinuousModel</code>, <code>env.continuous()</code>, <code>stepSize</code>, <code>until</code>.</p>
+
+      <h2>Código</h2>
+<pre><code class="language-kotlin">import br.com.pedromagno.continuous.SimContinuousModel
+import br.com.pedromagno.core.Environment
+import br.com.pedromagno.core.SimTime
+
+fun main() {
+    val env = Environment()
+    var position = 0.0
+    val speed    = 2.0  // unidades por unidade de tempo
+
+    env.continuous(
+        stepSize = 1.0,
+        until    = SimTime(5.0),
+        SimContinuousModel { ctx, dt ->
+            position += speed * dt
+            ctx.env.monitor.record(env.now, "posição=$position")
+        }
+    )
+
+    env.run(until = SimTime(10.0))
+    env.monitor.printAll()
+}</code></pre>
+
+      <p class="output-label">Saída</p>
+      <div class="output-block">[SimTime(value=1.0)]: posição=2.0
+[SimTime(value=2.0)]: posição=4.0
+[SimTime(value=3.0)]: posição=6.0
+[SimTime(value=4.0)]: posição=8.0
+[SimTime(value=5.0)]: posição=10.0</div>
+
+      <h2>O que está acontecendo</h2>
+      <ul>
+        <li><code>env.continuous(stepSize = 1.0, until = SimTime(5.0), ...)</code> cria um processo interno que chama <code>step(ctx, dt)</code> a cada 1 unidade.</li>
+        <li>O modelo para em t=5 (parâmetro <code>until</code> do <code>continuous()</code>), mas <code>env.run(until = 10.0)</code> poderia continuar outros processos.</li>
+        <li><code>dt == stepSize == 1.0</code> neste exemplo — a velocidade 2.0 × 1.0 = 2.0 por passo.</li>
+      </ul>
+
+      <h2>Exemplo com passo menor (precisão maior)</h2>
+<pre><code class="language-kotlin">val env = Environment()
+var posX = 0.0
+var posY = 0.0
+val velX = 1.5
+val velY = 1.0
+
+env.continuous(
+    stepSize = 0.1,  // 10 passos por unidade de tempo — mais suave
+    until    = SimTime(5.0),
+    SimContinuousModel { ctx, dt ->
+        posX += velX * dt
+        posY += velY * dt
+    }
+)
+
+env.run(until = SimTime(5.0))
+println("Posição final: ($posX, $posY)")
+// Posição final: (7.5, 5.0)</code></pre>
+
+      <div class="callout info">
+        Passos menores aumentam a precisão numérica mas geram mais eventos no scheduler.
+        Para simulações longas, balanceie <code>stepSize</code> com a frequência de mudança
+        das variáveis contínuas.
+      </div>
+
+      <div id="prev-next"></div>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('example-continuous.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>

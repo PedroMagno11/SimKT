@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contribuindo | SimKT Docs</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/code.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="container docs-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <article class="doc-content">
+<h1>Contribuindo</h1>
+<p>Contribuições são bem-vindas. Como a biblioteca ainda está em evolução, qualquer melhoria na API, documentação, exemplos ou testes pode ajudar bastante.</p>
+<h2>Fluxo sugerido</h2><ol><li>Faça um fork do projeto.</li><li>Crie uma branch para sua alteração.</li><li>Implemente e teste.</li><li>Abra um Pull Request explicando a mudança.</li></ol>
+<h2>Padrões recomendados</h2><ul><li>Código Kotlin simples e legível.</li><li>Nomes claros para classes e métodos.</li><li>Testes para comportamentos principais.</li><li>Documentação quando criar novas APIs.</li></ul>
+<pre><code>git checkout -b feature/nova-funcionalidade
+./gradlew test
+git commit -m "Add nova funcionalidade"</code></pre>
+    </article>
+  </main>
+  <div id="footer"></div>
+  <script src="../js/layout.js"></script>
+  <script>renderLayout('contributing.html');</script>
+  <script src="../js/main.js"></script>
+</body>
+</html>
